@@ -9,7 +9,7 @@
 
 :- use_module(library(graph_version)).
 :- use_module(user(user_db)).
-:- use_module(components(label)).
+% :- use_module(components(label)).
 :- use_module(cliopatria(hooks)).
 
 :- http_handler(cliopatria(annotate/dashboard/home), http_dashboard_home, []).
@@ -19,6 +19,13 @@
 	   'Dashboard only for users with admin rights').
 
 cliopatria:menu_item(100=annotation/http_dashboard_home, 'dashboard').
+
+:- html_resource(bootstrap,
+	      [ virtual(true),
+		requires(
+		    [ '//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css'
+		    ])
+	      ]).
 
 :- multifile
 	show_user_annotations//3.
@@ -49,14 +56,35 @@ user_page(User, _Options) :-
 dashboard_page(_Options) :-
 	find_users(Users),
 	length(Users, NrOfUsers),
-	reply_html_page([title('Tag experiment dashboard')],
-			[
-			 div(['Total number of users so far: ', NrOfUsers]),
-			 table([
-			     tr([th('User id'), th('Number of annotations')]),
-			        \show_users(Users)
-			       ])
-			]).
+	reply_html_page(
+	    [ title('Tag experiment dashboard'),
+	      meta([name(viewport),
+		    content('width=device-width, initial-scale=1')],
+		   []),
+	      \html_requires(
+		   [bootstrap,
+		    css('dashboard.css')
+		   ])
+	    ],
+	    [ div([class('navbar navbar-inverse navbar-fixed-top'),
+		   role('navigation')],
+		  [nav_to_be_done]),
+	      div([class('container-fluid')],
+		  [ div([class(row)],
+			[ div([class('col-sm-3 col-md-2 sidebar')],
+			      [nav_to_be_done]),
+			  div([class('col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main')],
+			      [ h1([class('page-header')], ['Dashboard']),
+				h2([class('sub-header')],
+				   ['Total number of users so far: ', NrOfUsers]),
+				table([
+				    tr([th('User id'), th('Number of annotations')]),
+				    \show_users(Users)
+				])
+			      ])
+			])
+		  ])
+	    ]).
 
 
 show_users([]) --> !.
