@@ -77,10 +77,16 @@ dashboard_page(_Options) :-
 			      [ h1([class('page-header')], ['Dashboard']),
 				h2([class('sub-header')],
 				   ['Total number of users so far: ', NrOfUsers]),
-				table([
-				    tr([th('User id'), th('Number of annotations')]),
-				    \show_users(Users)
-				])
+				div([class('table-responsive')],
+				    [table([class('table table-striped')],
+					   [ thead([
+						 tr([th('User id'), th('Number of annotations')])
+					     ]),
+					     tbody([
+						 \show_users(Users)
+					     ])
+					   ])
+				    ])
 			      ])
 			])
 		  ])
