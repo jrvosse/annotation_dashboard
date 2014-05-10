@@ -17,7 +17,8 @@
 % from other cpacks:
 :- use_module(library(oa_schema)).
 :- use_module(library(oa_annotation)).
-:- use_module(api(media_caching)). % needed for http api handlers
+:- use_module(api(media_caching)).       % needed for http api handlers
+:- use_module(applications(annotation)). % needed for http api handlers
 
 :- http_handler(cliopatria(annotate/dashboard/home), http_dashboard_home, []).
 :- http_handler(cliopatria(annotate/dashboard/user), http_dashboard_user, []).
@@ -60,31 +61,36 @@ http_dashboard_task(Request) :-
 	task_page(Task, []).
 
 task_page(Task, _Options) :-
-	rdf_label(Task, Label),
+	rdf_display_label(Task, Label),
 	find_annotations_by_task(Task, Annotations),
 	maplist(rdf_get_annotation_target, Annotations, Targets),
 	sort(Targets, Objects),
-	reply_html_page([title(Label),
-			 meta([name(viewport),
-			       content('width=device-width, initial-scale=1')]),
-			 \html_requires(
-			      [bootstrap,
-			       css('dashboard.css')
-			      ])],
-			[ \top_navbar,
-			  div([class('container-fluid')],
-			      [ div([class(row)],
-				    [ div([class('col-sm-12 col-md12 col-md-offset-0 main')],
-					  [ h1([class('page-header')], ['Dashboard']),
-					    h2([class('sub-header')],
-					       [Label]),
-					    h3([class('sub-header')],
-					       ['Task objects']),
-					    \show_objects(Objects, Annotations)
-					  ])
-				    ])
+	rdf_has(Task, ann_ui:taskUI, UI),
+	reply_html_page(
+	    [ title(Label),
+	      meta([name(viewport),
+		   content('width=device-width, initial-scale=1')]),
+	      \html_requires(
+		  [bootstrap,
+		   css('dashboard.css')
+		  ])],
+	    [ \top_navbar,
+	      div([class('container-fluid')],
+		  [ div([class(row)],
+			[ div([class('col-sm-12 main')],
+			      [ h1([class('page-header')], ['Dashboard']),
+				h2([class('sub-header')],
+				   [Label]),
+				h3([class('sub-header')],
+				   ['Task objects']),
+				\show_objects(Objects,
+					      [annotations(Annotations),
+					       ui(UI)
+					      ])
 			      ])
-			]).
+			])
+		  ])
+	    ]).
 
 user_page(User, _Options) :-
 	findall(Prop, user_property(User, Prop), Props),
@@ -101,9 +107,7 @@ user_page(User, _Options) :-
 	    [ \top_navbar,
 	      div([class('container-fluid')],
 		  [ div([class(row)],
-			[ div([class('col-sm-3 col-md-2 sidebar')],
-			      [nav_to_be_done]),
-			  div([class('col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main')
+			[ div([class('col-sm-12 main')
 			      ],
 			      [ h1([class('page-header')], ['Dashboard']),
 				h2([class('sub-header')],
@@ -141,17 +145,15 @@ dashboard_page(_Options) :-
 	    [ \top_navbar,
 	      div([class('container-fluid')],
 		  [ div([class(row)],
-			[ div([class('col-sm-3 col-md-2 sidebar')],
-			      [nav_to_be_done]),
-			  div([class('col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main')],
+			[ div([class('col-sm-12 main')],
 			      [ h1([class('page-header')], ['Dashboard']),
 				\show_tasks(Tasks),
 				h2([class('sub-header')],
 				   ['Total annotations not associated with a defined task: ', NrTaskless]),
 				div([class('table-responsive')],
 				    [table([class('table table-striped')],
-					   [\show_annotations(TaskLess)]
-					  )
+					   [\show_annotations(TaskLess, [])
+					   ])
 				    ]),
 				h2([class('sub-header')],
 				   ['Total number of users so far: ', NrOfUsers]),
@@ -174,35 +176,54 @@ top_navbar -->
 	html(
 	    div([class('navbar navbar-inverse navbar-fixed-top'),
 		 role('navigation')],
-		[nav_to_be_done])
+		[div([class('container-fluid')],
+		     [div([class('navbar-header')],
+			  [button([type('button'), class('navbar-toggle'),
+				   'data-toggle'(collapse), 'data-target'('.navbar-collapse')],
+				   [ span([class('sr-only')], 'Toggle navigation'),
+				     span([class('icon-bar')],[]),
+				     span([class('icon-bar')],[]),
+				     span([class('icon-bar')],[])
+				   ]),
+			   a([class('navbar-brand'),
+			      href('http://sealincmedia.wordpress.com/tag/accurator/')
+			     ], 'Accurator')
+			  ])
+		     ])
+		])
 	).
 
 show_objects([],_) --> !.
-show_objects([H|T],A) -->
-	show_object(H,A),
-	show_objects(T,A).
+show_objects([H|T],Options) -->
+	show_object(H,Options),
+	show_objects(T,Options).
 
 image(O,O).
 match_target(T,A) :-
 	rdf_get_annotation_target(A,T).
 
-show_object(O,A) -->
-	{ image(O, Image),
+show_object(O, Options) -->
+	{ option(annotations(A), Options, []),
+	  option(ui(UI), Options, undefined),
+	  image(O, Image),
 	  http_link_to_id(http_fit_thumbnail, [uri(Image)], Thumbnail),
-	  http_link_to_id(http_original, [uri(Image)], Original),
+	  (   UI \= undefined
+	  ->  http_link_to_id(http_annotation, [target(O), ui(UI)], ImageLink)
+	  ;   http_link_to_id(http_original, [uri(Image)], ImageLink)
+	  ),
 	  include(match_target(O), A, Annotations)
 	},
 	html([
-	    div([class('col-md-6')],
-		[a([href(Original)],
+	    div([class('col-xs-6')],
+		[a([href(ImageLink)],
 		   [img([class('dashboard object image'), src(Thumbnail)
 		       ])
 		   ]),
 		 div([class(row)], \rdf_link(O, [resource_format(label),max_length(50)]))
 		]),
-	    div([class('col-md-6 table-responsive')],
+	    div([class('col-xs-6 table-responsive')],
 		[ table([class('table table-striped')], [
-			\show_annotations(Annotations)
+			\show_annotations(Annotations, [])
 			])
 		])
 	]).
@@ -214,7 +235,7 @@ show_tasks([H|T]) -->
 	show_tasks(T).
 
 show_task(Task) -->
-	{ rdf_label(Task,Title),
+	{ rdf_display_label(Task,Title),
 	  http_link_to_id(http_dashboard_task, [task(Task)], TaskLink),
 	  find_task_properties(Task, Props)
 	},
@@ -232,10 +253,10 @@ show_task(Task) -->
 		  ])
 	     ]).
 
-show_annotations([]) --> !.
-show_annotations([H|T]) -->
-	html(tr(\show_annotation_summery(H))),
-	show_annotations(T).
+show_annotations([], _) --> !.
+show_annotations([H|T], Options) -->
+	html(tr(\show_annotation_summery(H, Options))),
+	show_annotations(T, Options).
 
 is_specific_target_annotation(A) :-
 	rdf_has(A, oa:hasTarget, T),
@@ -389,11 +410,15 @@ show_user_props([Prop|Tail]) -->
 	html(tr([td(Key), td(Value)])),
 	show_user_props(Tail).
 
-show_annotation_summery(A) -->
-	{ rdf_label(A, Title),
-	  rdf_has(A, oa:annotatedBy, User)
+show_annotation_summery(A, _Options) -->
+	{ rdf_has(A, oa:annotatedBy, User),
+	  (   rdf_has(A, ann_ui:annotationField, Field)
+	  ->  true
+	  ;   Field = undefined
+	  )
 	},
 	html([
-	    td(a([href(A)], Title)),
-	    td(\rdf_link(User, [format(nslabel)]))
+	    td(\rdf_link(Field, [resource_format(label)])),
+	    td(\rdf_link(A,     [resource_format(label)])),
+	    td(\rdf_link(User,  [resource_format(label)]))
 	]).
