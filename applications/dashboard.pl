@@ -213,21 +213,22 @@ show_object(O, Options) -->
 	  ),
 	  include(match_target(O), A, Annotations)
 	},
-	html([
-	    div([class('col-xs-6')],
-		[a([href(ImageLink)],
-		   [img([class('dashboard object image'), src(Thumbnail)
-		       ])
-		   ]),
-		 div([class(row)], \rdf_link(O, [resource_format(label),max_length(50)]))
-		]),
-	    div([class('col-xs-6 table-responsive')],
-		[ table([class('table table-striped')], [
-			\show_annotations(Annotations, [])
-			])
-		])
-	]).
-
+	html(
+	    [div([class(row)],
+		 [div([class('col-xs-6')],
+		      [a([href(ImageLink)],
+			 [img([class('dashboard object image'), src(Thumbnail)
+			      ])
+			 ]),
+		       div([class(row)], \rdf_link(O, [resource_format(label),max_length(50)]))
+		      ]),
+		  div([class('col-xs-6 table-responsive')],
+		      [ table([class('table table-striped')], [
+				  \show_annotations(Annotations, [])
+			      ])
+		      ])
+		 ])
+	    ]).
 
 show_tasks([]) --> !.
 show_tasks([H|T]) -->
@@ -259,6 +260,9 @@ show_annotations([H|T], Options) -->
 	show_annotations(T, Options).
 
 is_specific_target_annotation(A) :-
+	is_specific_target_annotation(A,_).
+
+is_specific_target_annotation(A, T) :-
 	rdf_has(A, oa:hasTarget, T),
 	rdfs_individual_of(T, oa:'SpecificResource').
 
