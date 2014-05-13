@@ -193,19 +193,21 @@ top_navbar -->
 		])
 	).
 
+
+
 show_objects([],_) --> !.
 show_objects([H|T],Options) -->
 	show_object(H,Options),
 	show_objects(T,Options).
 
-image(O,O).
+
 match_target(T,A) :-
 	rdf_get_annotation_target(A,T).
 
 show_object(O, Options) -->
 	{ option(annotations(A), Options, []),
 	  option(ui(UI), Options, undefined),
-	  image(O, Image),
+	  object_image(O, Image),
 	  http_link_to_id(http_fit_thumbnail, [uri(Image)], Thumbnail),
 	  (   UI \= undefined
 	  ->  http_link_to_id(http_annotation, [target(O), ui(UI)], ImageLink)
@@ -220,7 +222,7 @@ show_object(O, Options) -->
 			 [img([class('dashboard object image'), src(Thumbnail)
 			      ])
 			 ]),
-		       div([class(row)], \rdf_link(O, [resource_format(label),max_length(50)]))
+		       div([class('resource title')], \rdf_link(O, [resource_format(label),max_length(50)]))
 		      ]),
 		  div([class('col-xs-6 table-responsive')],
 		      [ table([class('table table-striped')], [
@@ -254,10 +256,23 @@ show_task(Task) -->
 		  ])
 	     ]).
 
-show_annotations([], _) --> !.
-show_annotations([H|T], Options) -->
+ann_sort_key(Annotation, Key-Annotation) :-
+	rdf_has(Annotation, ann_ui:annotationField, Field),
+	rdf_display_label(Field, FieldLabel),
+	rdf_display_label(Annotation,BodyLabel),
+	Key=key(FieldLabel, BodyLabel).
+
+show_annotations(List, Options) -->
+	{ maplist(ann_sort_key, List, KeyList),
+	  keysort(KeyList, KeySorted),
+	  pairs_values(KeySorted, Sorted)
+	},
+	show_annotations_(Sorted, Options).
+
+show_annotations_([], _) --> !.
+show_annotations_([H|T], Options) -->
 	html(tr(\show_annotation_summery(H, Options))),
-	show_annotations(T, Options).
+	show_annotations_(T, Options).
 
 is_specific_target_annotation(A) :-
 	is_specific_target_annotation(A,_).
