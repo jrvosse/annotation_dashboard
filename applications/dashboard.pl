@@ -29,6 +29,14 @@
 
 cliopatria:menu_item(100=annotation/http_dashboard_home, 'dashboard').
 
+:- html_resource(dashboard,
+		 [ virtual(true),
+		   requires([bootstrap,
+			     css('dashboard.css'),
+			     css('deniche-tags.css')
+			    ])
+		 ]).
+
 :- html_resource(bootstrap,
 	      [ virtual(true),
 		requires(
@@ -70,10 +78,8 @@ task_page(Task, _Options) :-
 	    [ title(Label),
 	      meta([name(viewport),
 		   content('width=device-width, initial-scale=1')]),
-	      \html_requires(
-		  [bootstrap,
-		   css('dashboard.css')
-		  ])],
+	      \html_requires(dashboard)
+	    ],
 	    [ \top_navbar,
 	      div([class('container-fluid')],
 		  [ div([class(row)],
@@ -271,7 +277,8 @@ show_annotations(List, Options) -->
 
 show_annotations_([], _) --> !.
 show_annotations_([H|T], Options) -->
-	html(tr(\show_annotation_summery(H, Options))),
+	html(tr([],
+		\show_annotation_summery(H, Options))),
 	show_annotations_(T, Options).
 
 is_specific_target_annotation(A) :-
@@ -429,6 +436,34 @@ show_user_props([Prop|Tail]) -->
 	html(tr([td(Key), td(Value)])),
 	show_user_props(Tail).
 
+
+
+
+
+button_image(agree,    '../../icons/thumbUp.png').
+button_image(disagree, '../../icons/thumbDown.png').
+
+button_class(Type, _Annotation, Class) :-
+	atomic_list_concat(
+	    ['inline judgeButton ',
+	     Type,
+	     'Button ',
+	     'unchecked'
+	    ],
+	    Class).
+
+button_title(_,_, title).
+
+judge_button(Type, Annotation) -->
+	{ button_image(Type, ImageSrc),
+	  button_class(Type, Annotation, ButtonClass),
+	  button_title(Type, Annotation, Title)
+	},
+	html([span([class(ButtonClass)],
+		   [img([src(ImageSrc), title(Title)])
+		   ])
+	     ]).
+
 show_annotation_summery(A, _Options) -->
 	{ rdf_has(A, oa:annotatedBy, User),
 	  (   rdf_has(A, ann_ui:annotationField, Field)
@@ -437,6 +472,8 @@ show_annotation_summery(A, _Options) -->
 	  )
 	},
 	html([
+	    td([style('width: 3ex;')], \judge_button(agree,    A)),
+	    td(\judge_button(disagree, A)),
 	    td(\rdf_link(Field, [resource_format(label)])),
 	    td(\rdf_link(A,     [resource_format(label)])),
 	    td(\rdf_link(User,  [resource_format(label)]))
