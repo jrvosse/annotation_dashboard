@@ -15,6 +15,7 @@
 :- use_module(user(user_db)).
 
 % from other cpacks:
+:- use_module(library(yui3_beta)). % needed for html resource declarations
 :- use_module(library(oa_schema)).
 :- use_module(library(oa_annotation)).
 :- use_module(api(media_caching)).       % needed for http api handlers
@@ -31,9 +32,12 @@ cliopatria:menu_item(100=annotation/http_dashboard_home, 'dashboard').
 
 :- html_resource(dashboard,
 		 [ virtual(true),
+		   ordered(true),
 		   requires([bootstrap,
 			     css('dashboard.css'),
-			     css('deniche-tags.css')
+			     css('deniche-tags.css'),
+			     yui3('yui/yui-min.js'),
+			     js('dashboard.js')
 			    ])
 		 ]).
 
@@ -68,10 +72,14 @@ http_dashboard_task(Request) :-
 	http_parameters(Request, [task(Task, [])]),
 	task_page(Task, []).
 
+is_tag(A) :-
+	rdf_has(A, oa:motivatedBy, oa:tagging).
+
 task_page(Task, _Options) :-
 	rdf_display_label(Task, Label),
 	find_annotations_by_task(Task, Annotations),
-	maplist(rdf_get_annotation_target, Annotations, Targets),
+	include(is_tag, Annotations, Tags),
+	maplist(rdf_get_annotation_target, Tags, Targets),
 	sort(Targets, Objects),
 	rdf_has(Task, ann_ui:taskUI, UI),
 	reply_html_page(
@@ -454,13 +462,12 @@ button_class(Type, _Annotation, Class) :-
 
 button_title(_,_, title).
 
-judge_button(Type, Annotation) -->
+judge_button(Type, Annotation, Field) -->
 	{ button_image(Type, ImageSrc),
-	  button_class(Type, Annotation, ButtonClass),
-	  button_title(Type, Annotation, Title)
+	  button_class(Type, Annotation, ButtonClass)
 	},
-	html([span([class(ButtonClass)],
-		   [img([src(ImageSrc), title(Title)])
+	html([span([class(ButtonClass), title(Annotation)],
+		   [img([src(ImageSrc), title(Field)])
 		   ])
 	     ]).
 
@@ -472,8 +479,8 @@ show_annotation_summery(A, _Options) -->
 	  )
 	},
 	html([
-	    td([style('width: 3ex;')], \judge_button(agree,    A)),
-	    td(\judge_button(disagree, A)),
+	    td([style('width: 3ex;')], \judge_button(agree, A, Field)),
+	    td(\judge_button(disagree, A, Field)),
 	    td(\rdf_link(Field, [resource_format(label)])),
 	    td(\rdf_link(A,     [resource_format(label)])),
 	    td(\rdf_link(User,  [resource_format(label)]))
