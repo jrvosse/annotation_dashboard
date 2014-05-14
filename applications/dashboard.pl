@@ -78,7 +78,7 @@ is_tag(A) :-
 task_page(Task, _Options) :-
 	rdf_display_label(Task, Label),
 	find_annotations_by_task(Task, Annotations),
-	include(is_tag, Annotations, Tags),
+	partition(is_tag, Annotations, Tags, Judgements),
 	maplist(rdf_get_annotation_target, Tags, Targets),
 	sort(Targets, Objects),
 	rdf_has(Task, ann_ui:taskUI, UI),
@@ -99,6 +99,7 @@ task_page(Task, _Options) :-
 				   ['Task objects']),
 				\show_objects(Objects,
 					      [annotations(Annotations),
+					       judgements(Judgements),
 					       ui(UI)
 					      ])
 			      ])
@@ -240,7 +241,7 @@ show_object(O, Options) -->
 		      ]),
 		  div([class('col-xs-6 table-responsive')],
 		      [ table([class('table table-striped')], [
-				  \show_annotations(Annotations, [])
+				  \show_annotations(Annotations, Options)
 			      ])
 		      ])
 		 ])
@@ -445,42 +446,57 @@ show_user_props([Prop|Tail]) -->
 	show_user_props(Tail).
 
 
+current_judgment(Type, A, Jlist, J, checked) :-
+	member(J, Jlist),
+	rdf_has(J, oa:hasTarget, A),
+	rdf_has(J, dc:title, literal(Type)),
+	!.
 
+current_judgment(_Type, A, Jlist, J, unchecked) :-
+	member(J, Jlist),
+	rdf_has(J, oa:hasTarget, A),!.
+
+current_judgment(_,_,_, null, unchecked).
 
 
 button_image(agree,    '../../icons/thumbUp.png').
 button_image(disagree, '../../icons/thumbDown.png').
 
-button_class(Type, _Annotation, Class) :-
+button_class(Type, Checked, Class) :-
 	atomic_list_concat(
 	    ['inline judgeButton ',
 	     Type,
 	     'Button ',
-	     'unchecked'
+	     Checked
 	    ],
 	    Class).
 
-button_title(_,_, title).
-
-judge_button(Type, Annotation, Field) -->
-	{ button_image(Type, ImageSrc),
-	  button_class(Type, Annotation, ButtonClass)
+judge_button(Type, Annotation, Field, Judgements) -->
+	{  current_judgment(Type, Annotation, Judgements, J, Checked),
+	   button_image(Type, ImageSrc),
+	   button_class(Type, Checked, ButtonClass)
 	},
-	html([span([class(ButtonClass), title(Annotation)],
-		   [img([src(ImageSrc), title(Field)])
+	html([span([class(ButtonClass), field(Field), judgement(J), annotation(Annotation)],
+		   [img([src(ImageSrc)])
 		   ])
 	     ]).
+is_judgement_of(A, J) :-
+	rdf_has(J, oa:hasTarget, A).
 
-show_annotation_summery(A, _Options) -->
+show_annotation_summery(A, Options) -->
 	{ rdf_has(A, oa:annotatedBy, User),
 	  (   rdf_has(A, ann_ui:annotationField, Field)
 	  ->  true
 	  ;   Field = undefined
-	  )
+	  ),
+	  option(judgements(J), Options, []),
+	  include(is_judgement_of(A), J, Js)
 	},
 	html([
-	    td([style('width: 3ex;')], \judge_button(agree, A, Field)),
-	    td(\judge_button(disagree, A, Field)),
+	    td([style('')],
+	       [ \judge_button(agree, A, Field, Js),
+		 \judge_button(disagree, A, Field, Js)
+	       ]),
 	    td(\rdf_link(Field, [resource_format(label)])),
 	    td(\rdf_link(A,     [resource_format(label)])),
 	    td(\rdf_link(User,  [resource_format(label)]))
