@@ -75,6 +75,9 @@ http_dashboard_task(Request) :-
 is_tag(A) :-
 	rdf_has(A, oa:motivatedBy, oa:tagging).
 
+is_tag(A) :-
+	rdfs_individual_of(A, ann_ui:tag).
+
 task_page(Task, _Options) :-
 	rdf_display_label(Task, Label),
 	find_annotations_by_task(Task, Annotations),
