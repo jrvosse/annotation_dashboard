@@ -10,6 +10,7 @@
 
 % from ClioPatria:
 :- use_module(library(semweb/rdf_label)).
+:- use_module(library(count)).
 :- use_module(cliopatria(hooks)).
 :- use_module(components(label)).
 :- use_module(user(user_db)).
@@ -146,7 +147,7 @@ user_page(User, _Options) :-
 
 dashboard_page(_Options) :-
 	find_tasks(Tasks),
-	find_users(Users),
+	find_workers(Users),
 	find_annotations_without_task(TaskLess),
 	length(TaskLess, NrTaskless),
 	length(Users, NrOfUsers),
@@ -173,15 +174,15 @@ dashboard_page(_Options) :-
 					   [\show_annotations(TaskLess, [])
 					   ])
 				    ]),
-				h2([class('sub-header')],
-				   ['Total number of users so far: ', NrOfUsers]),
+				h2([id(leaderboard), class('sub-header')],
+				   ['Leaderboard: #', NrOfUsers, ' annotators']),
 				div([class('table-responsive')],
 				    [table([class('table table-striped')],
 					   [ thead([
 						 tr([th('User id'), th('Number of annotations')])
 					     ]),
 					     tbody([
-						 \show_users(Users)
+						 \show_users(Users, 1)
 					     ])
 					   ])
 				    ])
@@ -205,7 +206,8 @@ top_navbar -->
 				   ]),
 			   a([class('navbar-brand'),
 			      href('http://sealincmedia.wordpress.com/tag/accurator/')
-			     ], 'Accurator')
+			     ], ['Accurator for ',
+				 span([class(role)],['Curator'])])
 			  ])
 		     ])
 		])
@@ -326,18 +328,21 @@ find_task_properties(Task, Props) :-
 	append([CountProps, RDFProps], Props).
 
 
-show_users([]) --> !.
-show_users([U|T]) -->
-	show_user(U),
-	show_users(T).
-
-show_user(U) -->
-	{
-	 option(id(Uid), U),
-	 option(done(Done), U),
-	 http_link_to_id(http_dashboard_user, [user(Uid)], UserLink)
+show_users([], _) --> !.
+show_users([U|T], Rank) -->
+	{ Next is Rank + 1
 	},
-	html(tr([td(a([href(UserLink)],['~p'-Uid])),
+	show_user(U, Rank),
+	show_users(T, Next).
+
+show_user(U, Rank) -->
+	{ option(id(Uid), U),
+	  option(done(Done), U),
+	  iri_xml_namespace(Uid, _, ScreenName),
+	  http_link_to_id(http_dashboard_user, [user(Uid)], UserLink)
+	},
+	html(tr([td([class(rank)],[Rank]),
+		 td(a([href(UserLink)],[ScreenName])),
 		 td([class='an_nr_of_annotations'],Done)])).
 
 find_tasks(Tasks) :-
@@ -345,23 +350,21 @@ find_tasks(Tasks) :-
 	keysort(Tasks0, TasksSorted),
 	pairs_values(TasksSorted, Tasks).
 
-find_users(Users) :-
-	findall(User, participant(User), Users0),
-	sort(Users0, Users).
+find_workers(Workers) :-
+	answer_set(W, rdf_has(_, oa:annotatedBy, W), Workers0),
+	maplist(participant, Workers0, Workers1),
+	sort(Workers1, Workers2),
+	reverse(Workers2, Workers).
+
 
 task(Task, Status) :-
 	rdfs_individual_of(Task, ann_ui:'AnnotationTask'),
 	rdf_has(Task, ann_ui:taskStatus, Status).
 
-participant(User) :-
-	current_user(Uid),
-	user_property(Uid, url(URL)),
-	find_annotations_by_user(URL, Annotations),
+participant(Url, User) :-
+	find_annotations_by_user(Url, Annotations),
 	length(Annotations, Done),
-	User= [
-	       id(Uid), url(URL), done(Done)
-	      ].
-
+	User= user{id:Url, done:Done}.
 
 find_annotations_by_user(User, Annotations) :-
 	findall(A, annotation_by_user(User, A), Anns0),
@@ -403,7 +406,7 @@ guess_task(Ann,Task-Ann) :-
 guess_task(Ann, undefined-Ann).
 
 ann_time(Ann, Time-Ann) :-
-	rdf(Ann, oa:annotatedAt, TimeLit),
+	rdf_has(Ann, oa:annotatedAt, TimeLit),
 	literal_text(TimeLit, Time).
 
 annotation_by_user(User, Annotation) :-
@@ -479,7 +482,10 @@ judge_button(Type, Annotation, Field, Judgements) -->
 	   button_image(Type, ImageSrc),
 	   button_class(Type, Checked, ButtonClass)
 	},
-	html([span([class(ButtonClass), field(Field), judgement(J), annotation(Annotation)],
+	html([span([class(ButtonClass),
+		    field(Field),
+		    judgement(J),
+		    annotation(Annotation)],
 		   [img([src(ImageSrc)])
 		   ])
 	     ]).
@@ -496,7 +502,7 @@ show_annotation_summery(A, Options) -->
 	  include(is_judgement_of(A), J, Js)
 	},
 	html([
-	    td([style('')],
+	    td([class(judgebuttoncell)],
 	       [ \judge_button(agree, A, Field, Js),
 		 \judge_button(disagree, A, Field, Js)
 	       ]),
