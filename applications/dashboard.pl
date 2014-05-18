@@ -110,7 +110,10 @@ task_page(Task, _Options) :-
 				   [Label]),
 				h3([class('sub-header')],
 				   ['Task objects']),
-				   % \show_objects(['http://purl.org/collections/nl/rma/collection/r-115055'], Options)
+				%\show_objects(['http://purl.org/collections/nl/rma/collection/r-115055',
+				%	       'http://purl.org/collections/nl/rma/collection/r-108494',
+				%	       'http://purl.org/collections/nl/rma/collection/r-141319'],
+				%	      Options)
 				\show_objects(Objects, Options)
 			      ])
 			])
@@ -232,23 +235,12 @@ match_target(T,A) :-
 
 show_object(O, Options) -->
 	{ option(annotations(A), Options, []),
-	  option(ui(UI), Options, undefined),
-	  object_image(O, Image),
-	  % http_link_to_id(http_mediumscale, [uri(Image)], Thumbnail),
-	  (   UI \= undefined
-	  ->  http_link_to_id(http_annotation, [target(O), ui(UI)], ImageLink)
-	  ;   http_link_to_id(http_original, [uri(Image)], ImageLink)
-	  ),
 	  include(match_target(O), A, Annotations)
 	},
 	html(
 	    [div([class(row)],
 		 [div([class('col-xs-6')],
-		      [a([href(ImageLink)],
-			 % [img([style('max-width: 100%'),class('dashboard object image'), src(Thumbnail)])
-			 [ \annotation_page_body([target(O)|Options])
-			 ]),
-		       div([class('resource title')], \rdf_link(O, [resource_format(label),max_length(50)]))
+		      [\annotation_page_body([target(O)|Options])
 		      ]),
 		  div([class('col-xs-6 table-responsive')],
 		      [ table([class('table table-striped')], [
