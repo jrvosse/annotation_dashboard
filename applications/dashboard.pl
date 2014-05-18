@@ -20,7 +20,7 @@
 :- use_module(library(oa_schema)).
 :- use_module(library(oa_annotation)).
 :- use_module(api(media_caching)).       % needed for http api handlers
-:- use_module(applications(annotation)). % needed for http api handlers
+:- use_module(applications(annotation)).
 
 :- http_handler(cliopatria(annotate/dashboard/home), http_dashboard_home, []).
 :- http_handler(cliopatria(annotate/dashboard/user), http_dashboard_user, []).
@@ -85,7 +85,16 @@ task_page(Task, _Options) :-
 	partition(is_tag, Annotations, Tags, Judgements),
 	maplist(rdf_get_annotation_target, Tags, Targets),
 	sort(Targets, Objects),
+
 	rdf_has(Task, ann_ui:taskUI, UI),
+	get_metafields(UI, [], MetadataFields),
+	get_anfields(UI, [], [], AnnotationFields),
+	Options = [annotations(Annotations),
+		   judgements(Judgements),
+		   annotation_fields(AnnotationFields),
+		   metadata_fields(MetadataFields),
+		   ui(UI)
+		  ],
 	reply_html_page(
 	    [ title(Label),
 	      meta([name(viewport),
@@ -101,11 +110,7 @@ task_page(Task, _Options) :-
 				   [Label]),
 				h3([class('sub-header')],
 				   ['Task objects']),
-				\show_objects(Objects,
-					      [annotations(Annotations),
-					       judgements(Judgements),
-					       ui(UI)
-					      ])
+				\show_objects(['http://purl.org/collections/nl/rma/collection/r-115055'], Options)
 			      ])
 			])
 		  ])
@@ -228,7 +233,7 @@ show_object(O, Options) -->
 	{ option(annotations(A), Options, []),
 	  option(ui(UI), Options, undefined),
 	  object_image(O, Image),
-	  http_link_to_id(http_fit_thumbnail, [uri(Image)], Thumbnail),
+	  % http_link_to_id(http_mediumscale, [uri(Image)], Thumbnail),
 	  (   UI \= undefined
 	  ->  http_link_to_id(http_annotation, [target(O), ui(UI)], ImageLink)
 	  ;   http_link_to_id(http_original, [uri(Image)], ImageLink)
@@ -239,8 +244,8 @@ show_object(O, Options) -->
 	    [div([class(row)],
 		 [div([class('col-xs-6')],
 		      [a([href(ImageLink)],
-			 [img([class('dashboard object image'), src(Thumbnail)
-			      ])
+			 % [img([style('max-width: 100%'),class('dashboard object image'), src(Thumbnail)])
+			 [ \annotation_page_body([target(O)|Options])
 			 ]),
 		       div([class('resource title')], \rdf_link(O, [resource_format(label),max_length(50)]))
 		      ]),
