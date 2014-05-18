@@ -110,7 +110,8 @@ task_page(Task, _Options) :-
 				   [Label]),
 				h3([class('sub-header')],
 				   ['Task objects']),
-				\show_objects(['http://purl.org/collections/nl/rma/collection/r-115055'], Options)
+				   % \show_objects(['http://purl.org/collections/nl/rma/collection/r-115055'], Options)
+				\show_objects(Objects, Options)
 			      ])
 			])
 		  ])
