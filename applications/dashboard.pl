@@ -93,7 +93,8 @@ task_page(Task, _Options) :-
 		   judgements(Judgements),
 		   annotation_fields(AnnotationFields),
 		   metadata_fields(MetadataFields),
-		   ui(UI)
+		   ui(UI),
+		   lazy(true)
 		  ],
 	reply_html_page(
 	    [ title(Label),
