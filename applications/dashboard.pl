@@ -94,7 +94,8 @@ task_page(Task, _Options) :-
 		   annotation_fields(AnnotationFields),
 		   metadata_fields(MetadataFields),
 		   ui(UI),
-		   lazy(true)
+		   lazy(true),
+		   image_link_predicate(http_mediumscale)
 		  ],
 	reply_html_page(
 	    [ title(Label),
