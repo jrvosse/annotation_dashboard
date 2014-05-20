@@ -2,7 +2,6 @@
 
 % from SWI-Prolog libraries:
 :- use_module(library(semweb/rdf_db)).
-:- use_module(library(semweb/rdfs)).
 :- use_module(library(http/http_dispatch)).
 :- use_module(library(http/http_parameters)).
 :- use_module(library(http/html_write)).
@@ -10,7 +9,6 @@
 
 % from ClioPatria:
 :- use_module(library(semweb/rdf_label)).
-:- use_module(library(count)).
 :- use_module(cliopatria(hooks)).
 :- use_module(components(label)).
 :- use_module(user(user_db)).
@@ -21,6 +19,10 @@
 :- use_module(library(oa_annotation)).
 :- use_module(api(media_caching)).       % needed for http api handlers
 :- use_module(applications(annotation)).
+
+% from this pack:
+:- use_module(api(dashboard_api)).
+:- use_module(library(dashboard_util)).
 
 :- http_handler(cliopatria(annotate/dashboard/home), http_dashboard_home, []).
 :- http_handler(cliopatria(annotate/dashboard/user), http_dashboard_user, []).
@@ -48,19 +50,7 @@ cliopatria:menu_item(100=annotation/http_dashboard_home, 'dashboard').
 		    [ '//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css'
 		    ])
 	      ]).
-:- rdf_meta
-	task_property_blacklist(t).
 
-task_property_blacklist(
-    [rdf:type,
-     dcterms:title
-    ]).
-
-http_dashboard_user(Request) :-
-	(setting(annotation:dashboard_admin_only, true)
-	-> authorized(admin(dashboard)); true),
-	http_parameters(Request, [user(User, [])]),
-	user_page(User, []).
 
 http_dashboard_home(_Request) :-
 	(setting(annotation:dashboard_admin_only, true)
@@ -73,11 +63,11 @@ http_dashboard_task(Request) :-
 	http_parameters(Request, [task(Task, [])]),
 	task_page(Task, []).
 
-is_tag(A) :-
-	rdf_has(A, oa:motivatedBy, oa:tagging).
-
-is_tag(A) :-
-	rdfs_individual_of(A, ann_ui:tag).
+http_dashboard_user(Request) :-
+	(setting(annotation:dashboard_admin_only, true)
+	-> authorized(admin(dashboard)); true),
+	http_parameters(Request, [user(User, [])]),
+	user_page(User, []).
 
 task_page(Task, _Options) :-
 	rdf_display_label(Task, Label),
@@ -144,7 +134,7 @@ user_page(User, _Options) :-
 				   ['User information']),
 				div([class('table-responsive')],
 				    [table([class('table table-striped')],
-					   [ \show_user_props(Props)
+					   [ \show_basic_dict(Props)
 					   ])
 				    ]),
 				h2([class('sub-header')],
@@ -270,7 +260,7 @@ show_task(Task) -->
 			       tr([th('Property'), th('Value')])
 			   ]),
 			   tbody([
-			       \show_user_props(Props)
+			       \show_basic_dict(Props)
 			   ])
 			 ])
 		  ])
@@ -295,38 +285,6 @@ show_annotations_([H|T], Options) -->
 		\show_annotation_summery(H, Options))),
 	show_annotations_(T, Options).
 
-is_specific_target_annotation(A) :-
-	is_specific_target_annotation(A,_).
-
-is_specific_target_annotation(A, T) :-
-	rdf_has(A, oa:hasTarget, T),
-	rdfs_individual_of(T, oa:'SpecificResource').
-
-find_task_properties(Task, Props) :-
-	find_annotations_by_task(Task, Annotations),
-	include(is_specific_target_annotation, Annotations, SpecAnns),
-	length(Annotations, NrAnnotations),
-	length(SpecAnns, NrSpecAnns),
-	NrObjAnnotations is NrAnnotations - NrSpecAnns,
-
-	task_property_blacklist(PropertyBlackList),
-	findall(Prop,
-		(   rdf_has(Task, P, O),
-		    \+ member(P, PropertyBlackList),
-		    Prop =.. [P,O]
-		),
-		RDFProps),
-	CountProps = [
-	    annotations(literal(NrAnnotations)),
-	    spec_annotations(literal(NrSpecAnns)),
-	    obj_annotations(literal(NrObjAnnotations)),
-	    targets_total('unknown'),
-	    targets_complete('unknown'),
-	    targets_worked_on('unknown'),
-	    targets_untouched('unknown')
-	],
-	append([CountProps, RDFProps], Props).
-
 
 show_users([], _) --> !.
 show_users([U|T], Rank) -->
@@ -345,74 +303,6 @@ show_user(U, Rank) -->
 		 td(a([href(UserLink)],[ScreenName])),
 		 td([class='an_nr_of_annotations'],Done)])).
 
-find_tasks(Tasks) :-
-	findall(Status-Task, task(Task, Status), Tasks0),
-	keysort(Tasks0, TasksSorted),
-	pairs_values(TasksSorted, Tasks).
-
-find_workers(Workers) :-
-	answer_set(W, rdf_has(_, oa:annotatedBy, W), Workers0),
-	maplist(participant, Workers0, Workers1),
-	sort(Workers1, Workers2),
-	reverse(Workers2, Workers).
-
-
-task(Task, Status) :-
-	rdfs_individual_of(Task, ann_ui:'AnnotationTask'),
-	rdf_has(Task, ann_ui:taskStatus, Status).
-
-participant(Url, User) :-
-	find_annotations_by_user(Url, Annotations),
-	length(Annotations, Done),
-	User= user{id:Url, done:Done}.
-
-find_annotations_by_user(User, Annotations) :-
-	findall(A, annotation_by_user(User, A), Anns0),
-	maplist(ann_time, Anns0, APairs),
-	group_pairs_by_key(APairs, AGrouped),
-	keysort(AGrouped, AGroupedS),
-	pairs_values(AGroupedS, Values),
-	append(Values, Annotations).
-
-find_annotations_by_task(Task, Annotations) :-
-	rdf_has(Task, ann_ui:taskUI, UI),
-	rdf_has(UI, ann_ui:fields, FieldList),
-	findall(
-	    A,
-	    (	rdfs_member(Field, FieldList),
-		annotation_by_field(Field, A)
-	    ),
-	    Annotations).
-
-find_annotations_without_task(Annotations) :-
-	findall(A, is_annotation(A), All),
-	maplist(guess_task, All, AllT),
-	group_pairs_by_key(AllT, Grouped),
-	(   member(undefined-Annotations, Grouped)
-	->  true
-	;   Annotations = []
-	),
-	!.
-
-is_annotation(A) :-
-	rdfs_individual_of(A, oa:'Annotation').
-
-guess_task(Ann,Task-Ann) :-
-	rdf_has(Ann, ann_ui:annotationField, Field),
-	rdf_has(UI, ann_ui:fields, FieldList),
-	rdfs_member(Field, FieldList),
-	rdf_has(Task, ann_ui:taskUI, UI),
-	!.
-guess_task(Ann, undefined-Ann).
-
-ann_time(Ann, Time-Ann) :-
-	rdf_has(Ann, oa:annotatedAt, TimeLit),
-	literal_text(TimeLit, Time).
-
-annotation_by_user(User, Annotation) :-
-	rdf_has(Annotation, oa:annotatedBy, User).
-annotation_by_field(Field, Annotation) :-
-	rdf_has(Annotation, ann_ui:annotationField, Field).
 
 property_key_label(targets_untouched, '# objects without any annotations').
 property_key_label(targets_total,     '# objects to be annotated').
@@ -422,34 +312,38 @@ property_key_label(annotations,       '# total annotations for this task').
 property_key_label(obj_annotations,   '# annotations on the object').
 property_key_label(spec_annotations,  '# annotations on a image region').
 
-show_user_props([]) --> !.
+show_basic_dict(Dict) -->
+	{ is_dict(Dict),
+	  dict_pairs(Dict, _Tag, Pairs)
+	},
+	show_option_list(Pairs).
 
-show_user_props([connection(_,_)|Tail]) -->
-	show_user_props(Tail).
-show_user_props([allow(_)|Tail]) -->
-	show_user_props(Tail).
-show_user_props([password(_)|Tail]) -->
-	show_user_props(Tail).
+show_option_list([]) --> !.
 
-show_user_props([Prop|Tail]) -->
-	{ Prop =.. [K,V],
+show_option_list([Prop|Tail]) -->
+	{ (Prop = K-V; Prop =.. [K,V]),
 	  (   rdf_current_predicate(K)
 	  ->  Key = \rdf_link(K)
 	  ;   property_key_label(K, Key)
 	  ->  true
 	  ;   Key = K
 	  ),
-	  (   rdf_is_literal(V)
-	  ->  Value = V
-	  ;   rdf_subject(V)
-	  ->  Value = \rdf_link(V)
-	  ;   rdf_global_id(_:Value, V)
-	  ->  true
-	  ;   Value = V
+	  (   rdf_is_resource(V)
+	  ->  (   rdf_subject(V)
+	      ->  Value = \rdf_link(V)
+	      ;	 (  rdf_global_id(_:Value, V)
+		 ->  true
+		 ;   Value = V
+		 )
+	      )
+	  ;   (   rdf_is_literal(V)
+	      ->  literal_text(V, Value)
+	      ;   V = Value
+	      )
 	  )
 	},
 	html(tr([td(Key), td(Value)])),
-	show_user_props(Tail).
+	show_option_list(Tail).
 
 
 current_judgment(Type, A, Jlist, J, checked) :-
