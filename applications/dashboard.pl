@@ -304,28 +304,39 @@ show_user(U, Rank) -->
 		 td([class='an_nr_of_annotations'],Done)])).
 
 
-property_key_label(targets_untouched, '# objects without any annotations').
-property_key_label(targets_total,     '# objects to be annotated').
-property_key_label(targets_complete,  '# objects completed').
-property_key_label(targets_worked_on, '# objects with some annotations').
-property_key_label(annotations,       '# total annotations for this task').
-property_key_label(obj_annotations,   '# annotations on the object').
-property_key_label(spec_annotations,  '# annotations on a image region').
+property_key_label(500, targets_untouched, '# objects without any annotations').
+property_key_label(100, targets_total,     '# objects to be annotated').
+property_key_label(200, targets_complete,  '# objects completed').
+property_key_label(300, targets_worked_on, '# objects with some annotations').
+property_key_label(100, annotations,       '# total annotations for this task').
+property_key_label(105, obj_annotations,   '# annotations on the object').
+property_key_label(104, spec_annotations,  '# annotations on a image region').
+property_key_label(999, Key, Key).
+
+pmap(Key-Value, ol(Order,Label)-Value) :-
+	property_key_label(Order, Key, Label).
+mapp(ol(_Order, Label)-Value, Label-Value).
 
 show_basic_dict(Dict) -->
 	{ is_dict(Dict),
-	  dict_pairs(Dict, _Tag, Pairs)
+	  dict_pairs(Dict, _Tag, Pairs0),
+	  maplist(pmap, Pairs0, Pairs1),
+	  sort(Pairs1, Pairs2),
+	  maplist(mapp, Pairs2, Pairs)
 	},
 	show_option_list(Pairs).
 
+show_basic_dict(List) -->
+	{ is_list(List),
+	  sort(List, Pairs)
+	},
+	show_option_list(Pairs).
 show_option_list([]) --> !.
 
 show_option_list([Prop|Tail]) -->
 	{ (Prop = K-V; Prop =.. [K,V]),
 	  (   rdf_current_predicate(K)
 	  ->  Key = \rdf_link(K)
-	  ;   property_key_label(K, Key)
-	  ->  true
 	  ;   Key = K
 	  ),
 	  (   rdf_is_resource(V)
