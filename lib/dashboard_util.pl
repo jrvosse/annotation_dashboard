@@ -5,7 +5,7 @@
 	    find_annotations_without_task/1,
 
 	    find_tasks/1,
-	    find_task_properties/2,
+	    find_task_properties/3,
 
 	    find_workers/1
 	  ]).
@@ -14,6 +14,8 @@
 :- use_module(library(semweb/rdfs)).
 :- use_module(library(semweb/rdf_label)).
 :- use_module(library(count)).
+
+:- use_module(library(oa_annotation)).
 
 :- rdf_meta
 	task_property_blacklist(t).
@@ -84,30 +86,52 @@ is_specific_target_annotation(A, T) :-
 	rdf_has(A, oa:hasTarget, T),
 	rdfs_individual_of(T, oa:'SpecificResource').
 
-find_task_properties(Task, Props) :-
+find_task_properties(Task, Props, Options) :-
+	option(filter(Filter), Options, ground),
 	find_annotations_by_task(Task, Annotations),
+	maplist(rdf_get_annotation_target, Annotations, WorkedOn0),
+	sort(WorkedOn0, WorkedOn),
 	include(is_specific_target_annotation, Annotations, SpecAnns),
 	length(Annotations, NrAnnotations),
 	length(SpecAnns, NrSpecAnns),
+	length(WorkedOn, NrWorkedOn),
 	NrObjAnnotations is NrAnnotations - NrSpecAnns,
-
+	NrTotalTargets = 200,  % Fixme
+	NrCompleteTargets = 0, % Fixme
+	NrUntouched is NrTotalTargets - NrWorkedOn,
 	task_property_blacklist(PropertyBlackList),
 	findall(Prop,
 		(   rdf_has(Task, P, O),
 		    \+ member(P, PropertyBlackList),
+		    F =.. [Filter, O],
+		    F,
 		    Prop =.. [P,O]
 		),
 		RDFProps),
-	CountProps = task_stats{
-			 annotations: NrAnnotations,
-			 spec_annotations: NrSpecAnns,
-			 obj_annotations: NrObjAnnotations,
-			 targets_total:'unknown',
-			 targets_complete:'unknown',
-			 targets_worked_on:'unknown',
-			 targets_untouched:'unknown'
-		     },
-	put_dict(RDFProps, CountProps, Props).
+	CountProps = [ annotations(NrAnnotations),
+		       spec_annotations(NrSpecAnns),
+		       obj_annotations(NrObjAnnotations),
+		       targets_total(NrTotalTargets),
+		       targets_complete(NrCompleteTargets),
+		       targets_worked_on(NrWorkedOn),
+		       targets_untouched(NrUntouched)
+		     ],
+	append([CountProps, RDFProps], Opts0),
+	maplist(pmap, Opts0, Props).
+
+property_key_label(500, targets_untouched, 'objects without tags').
+property_key_label(200, targets_total,     'objects targeted').
+property_key_label(250, targets_complete,  'objects completed').
+property_key_label(300, targets_worked_on, 'objects with some tags').
+property_key_label(100, annotations,       'total annotations').
+property_key_label(105, obj_annotations,   'annotations on object').
+property_key_label(104, spec_annotations,  'annotations on region').
+property_key_label(999, Key, Key).
+
+pmap(In, Out) :-
+	In =.. [Key, Value],
+	property_key_label(Order, Key, Label),
+	Out = task_stats{order:Order,label:Label, '@value':Value, key:Key}.
 
 find_tasks(Tasks) :-
 	findall(Status-Task, task(Task, Status), Tasks0),
