@@ -6,6 +6,7 @@
 :- use_module(library(http/http_parameters)).
 :- use_module(library(http/html_write)).
 :- use_module(library(http/html_head)).
+:- use_module(library(http/js_write)).
 
 % from ClioPatria:
 :- use_module(library(semweb/rdf_label)).
@@ -37,11 +38,20 @@ cliopatria:menu_item(100=annotation/http_dashboard_home, 'dashboard').
 		 [ virtual(true),
 		   ordered(true),
 		   requires([bootstrap,
-			     css('dashboard.css'),
+			     css('deniche-dashboard.css'),
 			     css('deniche-tags.css'),
 			     yui3('yui/yui-min.js'),
 			     js('dashboard.js')
 			    ])
+		 ]).
+:- html_resource(task_stats,
+		 [ virtual(true),
+		   requires([d3js,
+			    css('task_stats.css')])
+		 ]).
+:- html_resource(d3js,
+		 [ virtual(true),
+		   requires(['http://d3js.org/d3.v3.min.js'])
 		 ]).
 
 :- html_resource(bootstrap,
@@ -71,14 +81,14 @@ http_dashboard_user(Request) :-
 
 task_page(Task, _Options) :-
 	rdf_display_label(Task, Label),
+	rdf_has(Task, ann_ui:taskUI, UI),
+	get_metafields(UI, [], MetadataFields),
+	get_anfields(UI, [], [], AnnotationFields),
+
 	find_annotations_by_task(Task, Annotations),
 	partition(is_tag, Annotations, Tags, Judgements),
 	maplist(rdf_get_annotation_target, Tags, Targets),
 	sort(Targets, Objects),
-
-	rdf_has(Task, ann_ui:taskUI, UI),
-	get_metafields(UI, [], MetadataFields),
-	get_anfields(UI, [], [], AnnotationFields),
 	Options = [annotations(Annotations),
 		   judgements(Judgements),
 		   annotation_fields(AnnotationFields),
@@ -95,11 +105,13 @@ task_page(Task, _Options) :-
 	    ],
 	    [ \top_navbar,
 	      div([class('container-fluid')],
-		  [ div([class(row)],
+		  [
+		    div([class(row)],
 			[ div([class('col-sm-12 main')],
 			      [ h1([class('page-header')], ['Dashboard']),
 				h2([class('sub-header')],
 				   [Label]),
+				div([class(row)], \task_stats(Task)),
 				h3([class('sub-header')],
 				   ['Task objects']),
 				%\show_objects(['http://purl.org/collections/nl/rma/collection/r-115055',
@@ -116,13 +128,10 @@ user_page(User, _Options) :-
 	findall(Prop, user_property(User, Prop), Props),
 	reply_html_page(
 	    [title(User),
-	      meta([name(viewport),
+	     meta([name(viewport),
 		    content('width=device-width, initial-scale=1')],
 		   []),
-	     \html_requires(
-		   [bootstrap,
-		    css('dashboard.css')
-		   ])
+	     \html_requires(dashboard)
 	    ],
 	    [ \top_navbar,
 	      div([class('container-fluid')],
@@ -134,7 +143,7 @@ user_page(User, _Options) :-
 				   ['User information']),
 				div([class('table-responsive')],
 				    [table([class('table table-striped')],
-					   [ \show_basic_dict(Props)
+					   [ \show_option_list(Props)
 					   ])
 				    ]),
 				h2([class('sub-header')],
@@ -157,10 +166,7 @@ dashboard_page(_Options) :-
 	      meta([name(viewport),
 		    content('width=device-width, initial-scale=1')],
 		   []),
-	      \html_requires(
-		   [bootstrap,
-		    css('dashboard.css')
-		   ])
+	      \html_requires(dashboard)
 	    ],
 	    [ \top_navbar,
 	      div([class('container-fluid')],
@@ -242,6 +248,9 @@ show_object(O, Options) -->
 		 ])
 	    ]).
 
+task_compare(Order, Task1, Task2) :-
+	compare(Order, Task1.order, Task2.order).
+
 show_tasks([]) --> !.
 show_tasks([H|T]) -->
 	show_task(H),
@@ -250,7 +259,8 @@ show_tasks([H|T]) -->
 show_task(Task) -->
 	{ rdf_display_label(Task,Title),
 	  http_link_to_id(http_dashboard_task, [task(Task)], TaskLink),
-	  find_task_properties(Task, Props)
+	  find_task_properties(Task, Props0, []),
+	  predsort(task_compare, Props0, Props)
 	},
 	html([h3([class('sub-header')],
 		 [a([href(TaskLink)],Title)]),
@@ -260,7 +270,7 @@ show_task(Task) -->
 			       tr([th('Property'), th('Value')])
 			   ]),
 			   tbody([
-			       \show_basic_dict(Props)
+			       \show_option_list(Props)
 			   ])
 			 ])
 		  ])
@@ -303,41 +313,12 @@ show_user(U, Rank) -->
 		 td(a([href(UserLink)],[ScreenName])),
 		 td([class='an_nr_of_annotations'],Done)])).
 
-
-property_key_label(500, targets_untouched, '# objects without any annotations').
-property_key_label(100, targets_total,     '# objects to be annotated').
-property_key_label(200, targets_complete,  '# objects completed').
-property_key_label(300, targets_worked_on, '# objects with some annotations').
-property_key_label(100, annotations,       '# total annotations for this task').
-property_key_label(105, obj_annotations,   '# annotations on the object').
-property_key_label(104, spec_annotations,  '# annotations on a image region').
-property_key_label(999, Key, Key).
-
-pmap(Key-Value, ol(Order,Label)-Value) :-
-	property_key_label(Order, Key, Label).
-mapp(ol(_Order, Label)-Value, Label-Value).
-
-show_basic_dict(Dict) -->
-	{ is_dict(Dict),
-	  dict_pairs(Dict, _Tag, Pairs0),
-	  maplist(pmap, Pairs0, Pairs1),
-	  sort(Pairs1, Pairs2),
-	  maplist(mapp, Pairs2, Pairs)
-	},
-	show_option_list(Pairs).
-
-show_basic_dict(List) -->
-	{ is_list(List),
-	  sort(List, Pairs)
-	},
-	show_option_list(Pairs).
 show_option_list([]) --> !.
-
 show_option_list([Prop|Tail]) -->
-	{ (Prop = K-V; Prop =.. [K,V]),
+	{ (Prop = K-V; Prop =.. [K,V]; (K=Prop.key, V=Prop.'@value')),
 	  (   rdf_current_predicate(K)
 	  ->  Key = \rdf_link(K)
-	  ;   Key = K
+	  ;   Key = Prop.label
 	  ),
 	  (   rdf_is_resource(V)
 	  ->  (   rdf_subject(V)
@@ -356,6 +337,11 @@ show_option_list([Prop|Tail]) -->
 	html(tr([td(Key), td(Value)])),
 	show_option_list(Tail).
 
+show_option_list(Dict) -->
+	{ is_dict(Dict),
+	  dict_pairs(Dict, _Tag, Pairs)
+	},
+	show_option_list(Pairs).
 
 current_judgment(Type, A, Jlist, J, checked) :-
 	member(J, Jlist),
@@ -414,4 +400,102 @@ show_annotation_summery(A, Options) -->
 	    td(\rdf_link(Field, [resource_format(label)])),
 	    td(\rdf_link(A,     [resource_format(label)])),
 	    td(\rdf_link(User,  [resource_format(label)]))
+	]).
+
+
+task_stats(Task) -->
+	{ http_link_to_id(http_api_dashboard_task,
+			  [task(Task), filter(number)], DataSource),
+	  gensym(chart, Class),
+	  atom_concat('svg.', Class, Selector)
+	},
+	html([
+	    \html_requires(task_stats),
+	    svg([class(Class)],[]),
+	    \js_script({|javascript(DataSource, Selector)||
+var cwidth = document.body.clientWidth;
+var margin = {top: 20, right: 40, bottom: 50, left: 50},
+    width =  0.45*cwidth - margin.left - margin.right,
+    height = 200 - margin.top - margin.bottom;
+
+
+var x = d3.scale.ordinal()
+    .rangeRoundBands([5, width], .1);
+
+var y = d3.scale.linear()
+    .range([height, 0]);
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .tickSize(10,0)
+    .orient("bottom");
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left")
+    .ticks(10, "");
+
+ var svg = d3.select(Selector)
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+d3.json(DataSource, function(error, data) {
+  data.sort(compare_value);
+
+  x.domain(data.map(function(d) { return d.label; }));
+  y.domain([0, d3.max(data, function(d) { return d['@value']; })]);
+
+  var bar = svg.selectAll("g")
+      .data(data)
+      .enter()
+      .append("g");
+
+  bar.append("rect")
+      .attr("class", function(d) { return "bar " + d.key; })
+      .attr("x", function(d) { return x(d.label); })
+      .attr("width", x.rangeBand())
+      .attr("y", function(d) { return y(d['@value']); })
+      .attr("height", function(d) { return height - y(d['@value']); });
+
+  bar.append("text")
+    .style("text-anchor", "middle")
+    .attr("class", "count")
+    .attr("x", function(d) { return x(d.label) + 0.5 * x.rangeBand(); })
+    .attr("y", function(d) { return Math.min(y(0), y(d['@value'])); })
+    .attr("dy", "-1ex")
+    .text(function(d) { return d['@value']; });
+
+  svg.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + height + ")")
+      .call(xAxis).selectAll("text")
+	    .style("text-anchor", "middle")
+            .attr("dx", '.1em')
+            .attr("dy", function(d,i) { return 0 + 14*(i%3); });
+
+  d3.selectAll("g.x.axis g.tick line")
+    .style("stroke-opacity", 0.2)
+    .attr("y2", function(d,i){ return 15 + 14*(i%3); });
+
+  svg.append("g")
+      .attr("class", "y axis")
+      .call(yAxis)
+      .append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 6)
+      .attr("dy", "0.7ex")
+      .style("text-anchor", "end")
+      .text("Count");
+});
+
+function compare_value(a,b) {
+	    if (a.value < b.value) return 1;
+	    if (a.value > b.value) return -1;
+	    return 0;
+	}
+
+
+				     |})
 	]).

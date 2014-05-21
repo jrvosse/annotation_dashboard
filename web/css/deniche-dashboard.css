@@ -1,0 +1,6 @@
+@import "dashboard.css"; /* Bootstrap standard dasboard style */
+
+.navbar-brand .role {
+	color: brown;
+}
+

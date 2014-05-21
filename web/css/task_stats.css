@@ -1,0 +1,10 @@
+.bar       { fill: steelblue; }
+.bar:hover { fill: brown;}
+.axis      { font: sans-serif; font-size: 0.8em;}
+.axis path,
+.axis line {
+	fill: none;
+	stroke: #000;
+	shape-rendering: crispEdges;
+}
+text.count { fill: steelblue; font-size: 0.8em; }
