@@ -24,6 +24,7 @@
 % from this pack:
 :- use_module(api(dashboard_api)).
 :- use_module(library(dashboard_util)).
+:- use_module(library(region_merge)).
 
 :- http_handler(cliopatria(annotate/dashboard/home), http_dashboard_home, []).
 :- http_handler(cliopatria(annotate/dashboard/user), http_dashboard_user, []).
