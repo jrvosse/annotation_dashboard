@@ -29,7 +29,12 @@ region_merge([H|T], Accum, Result, Options) :-
 
 overlapping_annotation(A, Accum, New) :-
         T = A.hasTarget,
-	S = T.get('hasSelector'),
+	(   is_list(T)
+	->  member(Target, T),
+	    S = Target.get('hasSelector')
+	;   S = T.get('hasSelector')
+	),
+	!,
 	None = best{overlap:0, key:none},
 	best_overlapping_selector(S, None, Accum, Best),
 	(   insufficent_overlap(S, Best)
@@ -38,19 +43,27 @@ overlapping_annotation(A, Accum, New) :-
 	    New = Accum.put(Tid,_{children:[A], hasSelector:S})
 	;   merge_selectors(A, S, Best, Accum, New)
 	).
+overlapping_annotation(_A, Accum, Accum).
 
-insufficent_overlap(_S, Best) :-
-	Best.overlap == 0, !.
+
+insufficent_overlap(S, Best) :-
+	Best.overlap == 0, !,
+	debug(merge, 'no overlap for ~w', [S.value]).
+
 insufficent_overlap(S, B) :-
 	AreaS is S.w * S.h,
 	AreaB is B.hasSelector.w * B.hasSelector.h,
 	RatioS is B.overlap/AreaS,
 	RatioB is B.overlap/AreaB,
+	debug(merge, 'overlap ~3f:~3f ~3f (~3f/~3f)',
+	      [B.overlap, RatioS, RatioB, AreaS, AreaB]),
+
 	setting(minimum_overlap, Min),
 	(   RatioS < Min
 	;   RatioB < Min
-	),
-	debug(merge, 'insuf. overlap ~3f ~3f', [RatioS, RatioB]).
+	).
+
+
 
 merge_selectors(A, S, B, Accum, New) :-
 	debug(merge, 'Merging: ~w into ~w, overlap ~3f',
@@ -86,7 +99,7 @@ best_overlapping_selector_(S, BestSoFar, [H|T], Best) :-
 %             B.x1_______________BX2
 selector_overlap(A, B, Overlap) :-
 	AX2 is A.x + A.w, AY2 is A.y + A.h,
-	BX2 is B.x + B.w, BY2 is B.y + B.w,
+	BX2 is B.x + B.w, BY2 is B.y + B.h,
 	OX is min(AX2, BX2) - max(A.x, B.x),
 	OY is min(AY2, BY2) - max(A.y, B.y),
 	Overlap is OX * OY.
