@@ -80,7 +80,7 @@ http_dashboard_user(Request) :-
 	http_parameters(Request, [user(User, [])]),
 	user_page(User, []).
 
-task_page(Task, _Options) :-
+task_page(Task, Options0) :-
 	rdf_display_label(Task, Label),
 	rdf_has(Task, ann_ui:taskUI, UI),
 	get_metafields(UI, [], MetadataFields),
@@ -96,7 +96,8 @@ task_page(Task, _Options) :-
 		   metadata_fields(MetadataFields),
 		   ui(UI),
 		   lazy(true),
-		   image_link_predicate(http_mediumscale)
+		   image_link_predicate(http_mediumscale) |
+		   Options0
 		  ],
 	reply_html_page(
 	    [ title(Label),
@@ -125,8 +126,18 @@ task_page(Task, _Options) :-
 		  ])
 	    ]).
 
-user_page(User, _Options) :-
+user_page(User, Options0) :-
 	findall(Prop, user_property(User, Prop), Props),
+	find_annotations_by_user(User, Annotations),
+	partition(is_tag, Annotations, Tags, Judgements),
+	maplist(rdf_get_annotation_target, Tags, Targets),
+	sort(Targets, Objects),
+	Options = [annotations(Annotations),
+		   judgements(Judgements),
+		   lazy(true),
+		   image_link_predicate(http_mediumscale) |
+		   Options0
+		  ],
 	reply_html_page(
 	    [title(User),
 	     meta([name(viewport),
@@ -149,7 +160,7 @@ user_page(User, _Options) :-
 				    ]),
 				h2([class('sub-header')],
 				   ['Annotations made so far']),
-				to_be_done
+				\show_objects(Objects, Options)
 			      ])
 			])
 		  ])
@@ -233,17 +244,33 @@ match_target(T,A) :-
 	rdf_get_annotation_target(A,T).
 
 show_object(O, Options) -->
-	{ option(annotations(A), Options, []),
-	  include(match_target(O), A, Annotations)
+	{ option(annotations(A), Options),
+	  include(match_target(O), A, Annotations),
+	  (   ( option(metadata_fields(_), Options),
+		option(ui(_), Options),
+		option(annotation_fields(_), Options))
+	  ->  NewOptions = Options
+	  ;   member(First, A),
+	      guess_task(First, Task-First),
+	      rdf_has(Task, ann_ui:taskUI, UI),
+	      get_metafields(UI, [], MetadataFields),
+	      get_anfields(UI, [], [], AnnotationFields),
+	      NewOptions = [
+		  ui(UI),
+		  metadata_fields(MetadataFields),
+		  annotation_fields(AnnotationFields) |
+		  Options
+	      ]
+	  )
 	},
 	html(
 	    [div([class(row)],
 		 [div([class('col-xs-6')],
-		      [\annotation_page_body([target(O)|Options])
+		      [\annotation_page_body([target(O)|NewOptions])
 		      ]),
 		  div([class('col-xs-6 table-responsive')],
 		      [ table([class('table table-striped')], [
-				  \show_annotations(Annotations, Options)
+				  \show_annotations(Annotations, NewOptions)
 			      ])
 		      ])
 		 ])
@@ -316,18 +343,23 @@ show_user(U, Rank) -->
 
 show_option_list([]) --> !.
 show_option_list([Prop|Tail]) -->
-	{ (Prop = K-V; Prop =.. [K,V]; (K=Prop.key, V=Prop.'@value')),
-	  (   rdf_current_predicate(K)
-	  ->  Key = \rdf_link(K)
-	  ;   Key = Prop.label
+	{ (   is_dict(Prop)
+	  ->  V = Prop.'@value',
+	      Key = Prop.label
+	  ;   (   Prop = K-V
+	      ;	    Prop =.. [K,V]),
+		    (   rdf_current_predicate(K)
+		    ->  Key = \rdf_link(K)
+		    ;   Key = K
+		    )
 	  ),
 	  (   rdf_is_resource(V)
 	  ->  (   rdf_subject(V)
 	      ->  Value = \rdf_link(V)
-	      ;	 (  rdf_global_id(_:Value, V)
-		 ->  true
-		 ;   Value = V
-		 )
+	      ;	   (  rdf_global_id(_:Value, V)
+		   ->  true
+		   ;   Value = V
+		   )
 	      )
 	  ;   (   rdf_is_literal(V)
 	      ->  literal_text(V, Value)
@@ -414,89 +446,89 @@ task_stats(Task) -->
 	    \html_requires(task_stats),
 	    svg([class(Class)],[]),
 	    \js_script({|javascript(DataSource, Selector)||
-var cwidth = document.body.clientWidth;
-var margin = {top: 20, right: 40, bottom: 50, left: 50},
-    width =  0.45*cwidth - margin.left - margin.right,
-    height = 200 - margin.top - margin.bottom;
+			var cwidth = document.body.clientWidth;
+			var margin = {top: 20, right: 40, bottom: 50, left: 50},
+			width =  0.45*cwidth - margin.left - margin.right,
+			height = 200 - margin.top - margin.bottom;
 
 
-var x = d3.scale.ordinal()
-    .rangeRoundBands([5, width], .1);
+			var x = d3.scale.ordinal()
+			.rangeRoundBands([5, width], .1);
 
-var y = d3.scale.linear()
-    .range([height, 0]);
+			var y = d3.scale.linear()
+			.range([height, 0]);
 
-var xAxis = d3.svg.axis()
-    .scale(x)
-    .tickSize(10,0)
-    .orient("bottom");
+			var xAxis = d3.svg.axis()
+			.scale(x)
+			.tickSize(10,0)
+			.orient("bottom");
 
-var yAxis = d3.svg.axis()
-    .scale(y)
-    .orient("left")
-    .ticks(10, "");
+			var yAxis = d3.svg.axis()
+			.scale(y)
+			.orient("left")
+			.ticks(10, "");
 
- var svg = d3.select(Selector)
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-  .append("g")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+			var svg = d3.select(Selector)
+			.attr("width", width + margin.left + margin.right)
+			.attr("height", height + margin.top + margin.bottom)
+			.append("g")
+			.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-d3.json(DataSource, function(error, data) {
-  data.sort(compare_value);
+			d3.json(DataSource, function(error, data) {
+						data.sort(compare_value);
 
-  x.domain(data.map(function(d) { return d.label; }));
-  y.domain([0, d3.max(data, function(d) { return d['@value']; })]);
+						x.domain(data.map(function(d) { return d.label; }));
+						y.domain([0, d3.max(data, function(d) { return d['@value']; })]);
 
-  var bar = svg.selectAll("g")
-      .data(data)
-      .enter()
-      .append("g");
+						var bar = svg.selectAll("g")
+						.data(data)
+						.enter()
+						.append("g");
 
-  bar.append("rect")
-      .attr("class", function(d) { return "bar " + d.key; })
-      .attr("x", function(d) { return x(d.label); })
-      .attr("width", x.rangeBand())
-      .attr("y", function(d) { return y(d['@value']); })
-      .attr("height", function(d) { return height - y(d['@value']); });
+						bar.append("rect")
+						.attr("class", function(d) { return "bar " + d.key; })
+						.attr("x", function(d) { return x(d.label); })
+						.attr("width", x.rangeBand())
+						.attr("y", function(d) { return y(d['@value']); })
+						.attr("height", function(d) { return height - y(d['@value']); });
 
-  bar.append("text")
-    .style("text-anchor", "middle")
-    .attr("class", "count")
-    .attr("x", function(d) { return x(d.label) + 0.5 * x.rangeBand(); })
-    .attr("y", function(d) { return Math.min(y(0), y(d['@value'])); })
-    .attr("dy", "-1ex")
-    .text(function(d) { return d['@value']; });
+						bar.append("text")
+						.style("text-anchor", "middle")
+						.attr("class", "count")
+						.attr("x", function(d) { return x(d.label) + 0.5 * x.rangeBand(); })
+						.attr("y", function(d) { return Math.min(y(0), y(d['@value'])); })
+						.attr("dy", "-1ex")
+						.text(function(d) { return d['@value']; });
 
-  svg.append("g")
-      .attr("class", "x axis")
-      .attr("transform", "translate(0," + height + ")")
-      .call(xAxis).selectAll("text")
-	    .style("text-anchor", "middle")
-            .attr("dx", '.1em')
-            .attr("dy", function(d,i) { return 0 + 14*(i%3); });
+						svg.append("g")
+						.attr("class", "x axis")
+						.attr("transform", "translate(0," + height + ")")
+						.call(xAxis).selectAll("text")
+						.style("text-anchor", "middle")
+						.attr("dx", '.1em')
+						.attr("dy", function(d,i) { return 0 + 14*(i%3); });
 
-  d3.selectAll("g.x.axis g.tick line")
-    .style("stroke-opacity", 0.2)
-    .attr("y2", function(d,i){ return 15 + 14*(i%3); });
+						d3.selectAll("g.x.axis g.tick line")
+						.style("stroke-opacity", 0.2)
+						.attr("y2", function(d,i){ return 15 + 14*(i%3); });
 
-  svg.append("g")
-      .attr("class", "y axis")
-      .call(yAxis)
-      .append("text")
-      .attr("transform", "rotate(-90)")
-      .attr("y", 6)
-      .attr("dy", "0.7ex")
-      .style("text-anchor", "end")
-      .text("Count");
-});
+						svg.append("g")
+						.attr("class", "y axis")
+						.call(yAxis)
+						.append("text")
+						.attr("transform", "rotate(-90)")
+						.attr("y", 6)
+						.attr("dy", "0.7ex")
+						.style("text-anchor", "end")
+						.text("Count");
+					    });
 
-function compare_value(a,b) {
-	    if (a.value < b.value) return 1;
-	    if (a.value > b.value) return -1;
-	    return 0;
-	}
+			function compare_value(a,b) {
+				     if (a.value < b.value) return 1;
+				     if (a.value > b.value) return -1;
+				     return 0;
+				 }
 
 
-				     |})
+		       |})
 	]).
