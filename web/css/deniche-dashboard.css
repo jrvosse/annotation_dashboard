@@ -4,3 +4,12 @@
 	color: brown;
 }
 
+.container-fluid .mediasection .resource {
+	text-align: left;
+}
+.mediasection .description {
+	font-size: 0.6em;
+}
+.mediasection .link {
+	font-size: 0.5em;
+}
