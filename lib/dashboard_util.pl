@@ -1,5 +1,6 @@
 :- module(dashboard_util,
 	  [ is_tag/1,
+	    guess_task/2,
 	    find_annotations_by_user/2,
 	    find_annotations_by_task/2,
 	    find_annotations_without_task/1,
@@ -126,7 +127,7 @@ property_key_label(300, targets_worked_on, 'objects with some tags').
 property_key_label(100, annotations,       'total annotations').
 property_key_label(105, obj_annotations,   'annotations on object').
 property_key_label(104, spec_annotations,  'annotations on region').
-property_key_label(999, Key, Key).
+property_key_label(999, Key, Label) :- Label = \rdf_link(Key).
 
 pmap(In, Out) :-
 	In =.. [Key, Value],
