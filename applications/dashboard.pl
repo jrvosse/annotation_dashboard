@@ -135,6 +135,7 @@ user_page(User, Options0) :-
 	Options = [annotations(Annotations),
 		   judgements(Judgements),
 		   lazy(true),
+		   user(User),
 		   image_link_predicate(http_mediumscale) |
 		   Options0
 		  ],
