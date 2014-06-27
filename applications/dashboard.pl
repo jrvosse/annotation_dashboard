@@ -228,6 +228,15 @@ top_navbar -->
 			      href('http://sealincmedia.wordpress.com/tag/accurator/')
 			     ], ['Accurator for ',
 				 span([class(role)],['Curator'])])
+			  ]),
+		      div(class('navbar-collapse collapse'),
+			  [ ul(class('nav navbar-nav navbar-right'),
+				[ li([a([href('home')],['Dashboard'])]),
+				  li([a([href('..')],['Annotate'])]),
+				  li([a([href('../../admin')],['Admin'])]),
+				  li([a([href('../../user/logout')],['Logout'])])
+
+				])
 			  ])
 		     ])
 		])
