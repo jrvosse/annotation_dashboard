@@ -72,7 +72,7 @@ http_dashboard_task(Request) :-
 	(setting(annotation:dashboard_admin_only, true)
 	-> authorized(admin(dashboard)); true),
 	http_parameters(Request, [task(Task, [])]),
-	task_page(Task, []).
+	task_page(Task, [showTag(always)]).
 
 http_dashboard_user(Request) :-
 	(setting(annotation:dashboard_admin_only, true)
@@ -136,6 +136,7 @@ user_page(User, Options0) :-
 		   judgements(Judgements),
 		   lazy(true),
 		   user(User),
+		   showTag(mine),
 		   image_link_predicate(http_mediumscale) |
 		   Options0
 		  ],
@@ -212,6 +213,8 @@ dashboard_page(_Options) :-
 	    ]).
 
 top_navbar -->
+	{ http_link_to_id(http_annotation, [], AnnotateLink)
+	},
 	html(
 	    div([class('navbar navbar-inverse navbar-fixed-top'),
 		 role('navigation')],
@@ -232,7 +235,7 @@ top_navbar -->
 		      div(class('navbar-collapse collapse'),
 			  [ ul(class('nav navbar-nav navbar-right'),
 				[ li([a([href('home')],['Dashboard'])]),
-				  li([a([href('..')],['Annotate'])]),
+				  li([a([href(AnnotateLink)],['Annotate'])]),
 				  li([a([href('../../admin')],['Admin'])]),
 				  li([a([href('../../user/logout')],['Logout'])])
 
