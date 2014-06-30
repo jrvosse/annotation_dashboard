@@ -313,12 +313,12 @@ show_task(Task) -->
 	html([div(class(row),
 		  [ h3([class('sub-header')],
 		       [a([href(TaskLink)],Title)]),
-		    div(class('col-sm-3'),
+		    div(class('col-sm-5'),
 			[
 			    img([src(ImageHref), alt('Example image for this task'),
 				 class('img-responsive')],[])
 			]),
-		    div(class('col-sm-9'),
+		    div(class('col-sm-7'),
 			[
 			  div([class('table-responsive')],
 			      [table([class('table table-striped')],
