@@ -201,7 +201,9 @@ dashboard_page(_Options) :-
 				div([class('table-responsive')],
 				    [table([class('table table-striped')],
 					   [ thead([
-						 tr([th('User rank'), th('Name'), th('Number of annotations')])
+						 tr([th('User rank'),
+						     th('Name'),
+						     th('Number of annotations')])
 					     ]),
 					     tbody([
 						 \show_users(Users, 1)
