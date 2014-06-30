@@ -90,11 +90,16 @@ task_page(Task, Options0) :-
 	partition(is_tag, Annotations, Tags, Judgements),
 	maplist(rdf_get_annotation_target, Tags, Targets),
 	sort(Targets, Objects),
+	maplist(count_annotations, Objects, CountPairs),
+	sort(CountPairs, SortedPairs0),
+	reverse(SortedPairs0, ReversePairs),
+	pairs_values(ReversePairs, SortedObjects),
 	Options = [annotations(Annotations),
 		   judgements(Judgements),
 		   annotation_fields(AnnotationFields),
 		   metadata_fields(MetadataFields),
 		   ui(UI),
+		   task(Task),
 		   lazy(true),
 		   image_link_predicate(http_mediumscale) |
 		   Options0
@@ -116,11 +121,7 @@ task_page(Task, Options0) :-
 				div([class(row)], \task_stats(Task)),
 				h3([class('sub-header')],
 				   ['Task objects']),
-				%\show_objects(['http://purl.org/collections/nl/rma/collection/r-115055',
-				%	       'http://purl.org/collections/nl/rma/collection/r-108494',
-				%	       'http://purl.org/collections/nl/rma/collection/r-141319'],
-				%	      Options)
-				\show_objects(Objects, Options)
+				\show_objects(SortedObjects, Options)
 			      ])
 			])
 		  ])
@@ -257,14 +258,17 @@ match_target(T,A) :-
 	rdf_get_annotation_target(A,T).
 
 show_object(O, Options) -->
-	{ option(annotations(A), Options),
+	{ option(annotations(A), Options, []),
 	  include(match_target(O), A, Annotations),
 	  (   ( option(metadata_fields(_), Options),
 		option(ui(_), Options),
 		option(annotation_fields(_), Options))
 	  ->  NewOptions = Options
-	  ;   member(First, A),
-	      guess_task(First, Task-First),
+	  ;   ( option(task(Task), Options)
+	      ->  true
+	      ;	  member(First, A),
+		  guess_task(First, Task-First)
+	      ),
 	      rdf_has(Task, ann_ui:taskUI, UI),
 	      get_metafields(UI, [], MetadataFields),
 	      get_anfields(UI, [], [], AnnotationFields),
@@ -300,20 +304,29 @@ show_tasks([H|T]) -->
 show_task(Task) -->
 	{ rdf_display_label(Task,Title),
 	  http_link_to_id(http_dashboard_task, [task(Task)], TaskLink),
-	  find_task_properties(Task, Props0, []),
-	  predsort(task_compare, Props0, Props)
+	  find_task_properties(Task, Props0, Representative,[]),
+	  predsort(task_compare, Props0, Props),
+	  object_image(Representative, Image),
+	  http_link_to_id(http_medium_fit, [uri(Image)], ImageHref)
+
 	},
-	html([h3([class('sub-header')],
-		 [a([href(TaskLink)],Title)]),
-	      div([class('table-responsive')],
-		  [table([class('table table-striped')],
-			 [ thead([
-			       tr([th('Property'), th('Value')])
-			   ]),
-			   tbody([
-			       \show_option_list(Props)
-			   ])
-			 ])
+	html([div(class(row),
+		  [ h3([class('sub-header')],
+		       [a([href(TaskLink)],Title)]),
+		    div(class('col-sm-3'),
+			[
+			    img([src(ImageHref), alt('Example image for this task'),
+				 class('img-responsive')],[])
+			]),
+		    div(class('col-sm-9'),
+			[
+			  div([class('table-responsive')],
+			      [table([class('table table-striped')],
+				     [ % thead([tr([th('Property'), th('Value')])]),
+				       tbody([\show_option_list(Props)])
+				     ])
+			      ])
+			])
 		  ])
 	     ]).
 

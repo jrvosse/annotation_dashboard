@@ -17,5 +17,5 @@ http_api_dashboard_task(Request) :-
 					 oneof([ground, number])
 					])
 			]),
-	find_task_properties(Task, Props, [filter(Filter)]),
+	find_task_properties(Task, Props, _, [filter(Filter)]),
 	reply_json(Props).
