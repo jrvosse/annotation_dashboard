@@ -11,7 +11,7 @@ YUI().use('event', 'json', 'io', function(Y) {
     function submitJudgement(ev, type, toggleto, mode) {
 	var button = ev.currentTarget;
 	button.detach('click');
-	
+
 	var annotationId = button.getAttribute('annotation');
 	var fieldId      = button.getAttribute('field');
 	var previous     = button.getAttribute('judgement');
@@ -42,7 +42,7 @@ YUI().use('event', 'json', 'io', function(Y) {
 		var peer = null;
 		if (buttons.item(0) == button) peer = buttons.item(1);
 		if (buttons.item(1) == button) peer = buttons.item(0);
-		buttons.setAttribute('judgement', r['@id']);
+		buttons.setAttribute('judgement', r.annotation['@id']);
 		button.removeClass('unchecked');
 		button.addClass('checked');
 		peer.addClass('unchecked');
