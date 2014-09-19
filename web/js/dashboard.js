@@ -1,7 +1,7 @@
 YUI().use('event', 'json', 'io', function(Y) {
     Y.on('domready', function() {
-	Y.all(   '.agreeButton.unchecked').on('click', submitJudgement, null, 'agree', 'disagree', 'add');
-	Y.all('.disagreeButton.unchecked').on('click', submitJudgement, null, 'disagree', 'agree', 'add');
+	Y.all(   '.judgebutton.agree.unchecked').on('click', submitJudgement, null, 'agree', 'disagree', 'add');
+	Y.all('.judgebutton.disagree.unchecked').on('click', submitJudgement, null, 'disagree', 'agree', 'add');
     });
     MOTIVATION = {
 	tagging:    'http://www.w3.org/ns/oa#tagging',
@@ -38,16 +38,17 @@ YUI().use('event', 'json', 'io', function(Y) {
 	    },
 	    on:{ success: function(e,o) {
 		var r = Y.JSON.parse(o.responseText);
-		var buttons = button.get('parentNode').all('.judgeButton');
-		var peer = null;
-		if (buttons.item(0) == button) peer = buttons.item(1);
-		if (buttons.item(1) == button) peer = buttons.item(0);
+		var buttons = button.get('parentNode').get('parentNode').all('.judgebutton');
+		var labels = button.get('parentNode').get('parentNode').all('label.btn');
+		labels.removeClass('active');
 		buttons.setAttribute('judgement', r.annotation['@id']);
+		buttons.removeClass('checked');
+		buttons.addClass('unchecked');
+		buttons.on('click', submitJudgement, null, toggleto, type, 'add');
+		button.detach('click');
 		button.removeClass('unchecked');
 		button.addClass('checked');
-		peer.addClass('unchecked');
-		peer.removeClass('checked');
-		peer.on('click', submitJudgement, null, toggleto, type, 'add');
+		button.get('parentNode').addClass('active');
 	    } }
 	})
     }

@@ -1,6 +1,10 @@
 :- module(an_dashboard, []).
 
 % from SWI-Prolog libraries:
+:- use_module(library(apply)).
+:- use_module(library(lists)).
+:- use_module(library(pairs)).
+
 :- use_module(library(semweb/rdf_db)).
 :- use_module(library(http/http_dispatch)).
 :- use_module(library(http/http_parameters)).
@@ -18,6 +22,7 @@
 :- use_module(library(yui3_beta)). % needed for html resource declarations
 :- use_module(library(oa_schema)).
 :- use_module(library(oa_annotation)).
+:- use_module(library(ac_list_util)).
 :- use_module(api(media_caching)).       % needed for http api handlers
 :- use_module(applications(annotation)).
 
@@ -89,7 +94,8 @@ task_page(Task, Options0) :-
 	find_annotations_by_task(Task, Annotations),
 	partition(is_tag, Annotations, Tags, Judgements),
 	maplist(rdf_get_annotation_target, Tags, Targets),
-	sort(Targets, Objects),
+	list_limit(Targets, 1, TargetsLimited, _Rest),
+	sort(TargetsLimited, Objects),
 	maplist(count_annotations, Objects, CountPairs),
 	sort(CountPairs, SortedPairs0),
 	reverse(SortedPairs0, ReversePairs),
@@ -421,29 +427,43 @@ current_judgment(_,_,_, null, unchecked).
 %button_image(disagree, '../../icons/thumbDown.png').
 
 button_glyph(agree) -->
-	html(span([class([glyphicon,'glyphicon-thumbs-up'])],[])).
+	html(span([class([glyphicon,'glyphicon-thumbs-up'])],[' agree'])).
 button_glyph(disagree) -->
-	html(span([class([glyphicon,'glyphicon-thumbs-down'])],[])).
+	html(span([class([glyphicon,'glyphicon-thumbs-down'])],[' disagree'])).
+
+checked_active(checked, active).
+checked_active(_, '').
 
 button_class(Type, Checked, Class) :-
+	checked_active(Checked, Active),
 	atomic_list_concat(
 	    ['inline judgeButton ',
 	     Type,
 	     'Button ',
-	     Checked
+	     Checked , ' ',
+	     Active
 	    ],
 	    Class).
 
 judge_button(Type, Annotation, Field, Judgements) -->
 	{  current_judgment(Type, Annotation, Judgements, J, Checked),
-	   button_class(Type, Checked, ButtonClass)
+	   checked_active(Checked, Active)
 	},
-	html([button([class([ButtonClass, btn, 'btn-default', 'btn-lg']),
-		    field(Field),
-		    judgement(J),
-		    annotation(Annotation)],
-		   \button_glyph(Type)
-		  )]).
+	html([
+	    label([class([Active, btn,'btn-primary'])],
+		  [ input([class([judgebutton, Type, Checked
+				 ]),
+			   field(Field),
+			   judgement(J),
+			   annotation(Annotation),
+			   type(radio),
+			   title(Type), 'data-toggle'(tooltip)
+			  ],
+			  [
+			      \button_glyph(Type)
+			  ])
+		  ])
+	]).
 
 
 is_judgement_of(A, J) :-
@@ -460,7 +480,7 @@ show_annotation_summery(A, Options) -->
 	},
 	html([
 	    td([class(judgebuttoncell)],
-	       div([class('btn-group')],
+	       div([class('btn-group'), 'data-toggle'(buttons)],
 		   [ \judge_button(agree, A, Field, Js),
 		     \judge_button(disagree, A, Field, Js)
 		   ])
