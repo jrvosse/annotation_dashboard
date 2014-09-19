@@ -143,7 +143,9 @@ count_annotations(Target, Count-Target) :-
 representative(Candidates, Representative) :-
 	maplist(count_annotations, Candidates, Counts),
 	sort(Counts, Sorted),
-	reverse(Sorted, [_Count-Representative|_]).
+	reverse(Sorted, [_Count-Representative|_]),!.
+
+representative(_, no_representative_found).
 
 property_key_label(500, targets_untouched, 'works without tags').
 property_key_label(200, targets_total,     'works targeted').
