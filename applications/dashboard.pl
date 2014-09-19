@@ -3,6 +3,7 @@
 % from SWI-Prolog libraries:
 :- use_module(library(apply)).
 :- use_module(library(lists)).
+:- use_module(library(option)).
 :- use_module(library(pairs)).
 
 :- use_module(library(semweb/rdf_db)).
@@ -76,8 +77,10 @@ http_dashboard_home(_Request) :-
 http_dashboard_task(Request) :-
 	(setting(annotation:dashboard_admin_only, true)
 	-> authorized(admin(dashboard)); true),
-	http_parameters(Request, [task(Task, [])]),
-	task_page(Task, [showTag(always)]).
+	http_parameters(Request,
+			[task(Task, [])],
+			[form_data(Params)]),
+	task_page(Task, [showTag(always)|Params]).
 
 http_dashboard_user(Request) :-
 	(setting(annotation:dashboard_admin_only, true)
@@ -86,6 +89,8 @@ http_dashboard_user(Request) :-
 	user_page(User, []).
 
 task_page(Task, Options0) :-
+	option(limit(Limit), Options0, 5),
+	option(offet(Offset), Options0, 0),
 	rdf_display_label(Task, Label),
 	rdf_has(Task, ann_ui:taskUI, UI),
 	get_metafields(UI, [], MetadataFields),
@@ -93,8 +98,10 @@ task_page(Task, Options0) :-
 
 	find_annotations_by_task(Task, Annotations),
 	partition(is_tag, Annotations, Tags, Judgements),
-	maplist(rdf_get_annotation_target, Tags, Targets),
-	list_limit(Targets, 1, TargetsLimited, _Rest),
+	maplist(rdf_get_annotation_target, Tags, AllTargets),
+	list_offset(AllTargets, Offset, OffTargets),
+	list_limit(OffTargets, Limit, TargetsLimited, _Rest),
+	length(AllTargets, Total),
 	sort(TargetsLimited, Objects),
 	maplist(count_annotations, Objects, CountPairs),
 	sort(CountPairs, SortedPairs0),
@@ -107,6 +114,9 @@ task_page(Task, Options0) :-
 		   ui(UI),
 		   task(Task),
 		   lazy(true),
+		   limit(Limit),
+		   offset(Offset),
+		   total(Total),
 		   image_link_predicate(http_mediumscale) |
 		   Options0
 		  ],
@@ -127,7 +137,8 @@ task_page(Task, Options0) :-
 				div([class(row)], \task_stats(Task)),
 				h3([class('sub-header')],
 				   ['Task objects']),
-				\show_objects(SortedObjects, Options)
+				\show_objects(SortedObjects, Options),
+				\pagination(Options)
 			      ])
 			])
 		  ])
@@ -422,10 +433,6 @@ current_judgment(_Type, A, Jlist, J, unchecked) :-
 
 current_judgment(_,_,_, null, unchecked).
 
-
-%button_image(agree,    '../../icons/thumbUp.png').
-%button_image(disagree, '../../icons/thumbDown.png').
-
 button_glyph(agree) -->
 	html(span([class([glyphicon,'glyphicon-thumbs-up'])],[' agree'])).
 button_glyph(disagree) -->
@@ -433,17 +440,6 @@ button_glyph(disagree) -->
 
 checked_active(checked, active).
 checked_active(_, '').
-
-button_class(Type, Checked, Class) :-
-	checked_active(Checked, Active),
-	atomic_list_concat(
-	    ['inline judgeButton ',
-	     Type,
-	     'Button ',
-	     Checked , ' ',
-	     Active
-	    ],
-	    Class).
 
 judge_button(Type, Annotation, Field, Judgements) -->
 	{  current_judgment(Type, Annotation, Judgements, J, Checked),
@@ -490,6 +486,23 @@ show_annotation_summery(A, Options) -->
 	    td(\rdf_link(User,  [resource_format(label)]))
 	]).
 
+multiply(A,B,P) :- P is A * B.
+pitem(_, []) --> !.
+pitem(Offset, [H1|T]) -->
+	{ ( T = [H2|_], between(H1, H2, Offset) -> Class = [active] ; Class = [])
+	},
+	html(li([class(Class)],a([href('#')],H1))),
+	pitem(Offset,T).
+
+pagination(Options) -->
+	{ option(limit(Limit), Options),
+	  option(offset(Offset), Options),
+	  option(total(Total), Options),
+	  Max is floor(Total/Limit),
+	  numlist(0,Max, List1),
+	  maplist(multiply(Limit), List1, List)
+	},
+	html(ul([class(pagination)],[\pitem(Offset, List)])).
 
 task_stats(Task) -->
 	{ http_link_to_id(http_api_dashboard_task,
