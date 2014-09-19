@@ -417,8 +417,13 @@ current_judgment(_Type, A, Jlist, J, unchecked) :-
 current_judgment(_,_,_, null, unchecked).
 
 
-button_image(agree,    '../../icons/thumbUp.png').
-button_image(disagree, '../../icons/thumbDown.png').
+%button_image(agree,    '../../icons/thumbUp.png').
+%button_image(disagree, '../../icons/thumbDown.png').
+
+button_glyph(agree) -->
+	html(span([class([glyphicon,'glyphicon-thumbs-up'])],[])).
+button_glyph(disagree) -->
+	html(span([class([glyphicon,'glyphicon-thumbs-down'])],[])).
 
 button_class(Type, Checked, Class) :-
 	atomic_list_concat(
@@ -431,16 +436,16 @@ button_class(Type, Checked, Class) :-
 
 judge_button(Type, Annotation, Field, Judgements) -->
 	{  current_judgment(Type, Annotation, Judgements, J, Checked),
-	   button_image(Type, ImageSrc),
 	   button_class(Type, Checked, ButtonClass)
 	},
-	html([span([class(ButtonClass),
+	html([button([class([ButtonClass, btn, 'btn-default', 'btn-lg']),
 		    field(Field),
 		    judgement(J),
 		    annotation(Annotation)],
-		   [img([src(ImageSrc)])
-		   ])
-	     ]).
+		   \button_glyph(Type)
+		  )]).
+
+
 is_judgement_of(A, J) :-
 	rdf_has(J, oa:hasTarget, A).
 
@@ -455,9 +460,11 @@ show_annotation_summery(A, Options) -->
 	},
 	html([
 	    td([class(judgebuttoncell)],
-	       [ \judge_button(agree, A, Field, Js),
-		 \judge_button(disagree, A, Field, Js)
-	       ]),
+	       div([class('btn-group')],
+		   [ \judge_button(agree, A, Field, Js),
+		     \judge_button(disagree, A, Field, Js)
+		   ])
+	      ),
 	    td(\rdf_link(Field, [resource_format(label)])),
 	    td(\rdf_link(A,     [resource_format(label)])),
 	    td(\rdf_link(User,  [resource_format(label)]))
