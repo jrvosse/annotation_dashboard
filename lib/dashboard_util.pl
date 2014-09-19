@@ -28,12 +28,17 @@ task_property_blacklist(
      dcterms:xtitle,
      'xhttp://semanticweb.cs.vu.nl/annotate/ui/taskUI'
     ]).
+
 blacklisted_annotation(A) :-
 	rdf_has(A, oa:annotatedBy, 'http://sealinc.ops.few.vu.nl/accurator/user/jasper')
 	;
 	rdf_has(A, oa:annotedBy, 'http://localhost:3020/user/admin')
 	;
+	has_no_image(A)
+	;
 	rdf_has(A, dcterms:title, literal(test)).
+
+has_no_image(_A) :- fail.
 
 is_tag(A) :-
 	rdf_has(A, oa:motivatedBy, oa:tagging).

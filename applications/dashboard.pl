@@ -78,9 +78,12 @@ http_dashboard_task(Request) :-
 	(setting(annotation:dashboard_admin_only, true)
 	-> authorized(admin(dashboard)); true),
 	http_parameters(Request,
-			[task(Task, [])],
-			[form_data(Params)]),
-	task_page(Task, [showTag(always)|Params]).
+			[task(Task, []),
+			 limit(Limit, [nonneg, default(5)]),
+			 offset(Offset, [nonneg, default(0)])
+			]),
+
+	task_page(Task, [showTag(always), limit(Limit), offset(Offset)]).
 
 http_dashboard_user(Request) :-
 	(setting(annotation:dashboard_admin_only, true)
@@ -137,7 +140,8 @@ task_page(Task, Options0) :-
 				div([class(row)], \task_stats(Task)),
 				h3([class('sub-header')],
 				   ['Task objects']),
-				\show_objects(SortedObjects, Options),
+				\show_objects(['http://purl.org/collections/nl/rma/collection/r-115055'
+					       |SortedObjects], Options),
 				\pagination(Options)
 			      ])
 			])
