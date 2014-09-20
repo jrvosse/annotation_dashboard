@@ -101,11 +101,11 @@ task_page(Task, Options0) :-
 
 	find_annotations_by_task(Task, Annotations),
 	partition(is_tag, Annotations, Tags, Judgements),
-	maplist(rdf_get_annotation_target, Tags, AllTargets),
-	list_offset(AllTargets, Offset, OffTargets),
-	list_limit(OffTargets, Limit, TargetsLimited, _Rest),
+	maplist(rdf_get_annotation_target, Tags, RawTargets),
+	sort(RawTargets, AllTargets), % de-dup
+	list_offset(['http://purl.org/collections/nl/rma/collection/r-115055'|AllTargets], Offset, OffTargets),
+	list_limit(OffTargets, Limit, Objects, _Rest),
 	length(AllTargets, Total),
-	sort(TargetsLimited, Objects),
 	maplist(count_annotations, Objects, CountPairs),
 	sort(CountPairs, SortedPairs0),
 	reverse(SortedPairs0, ReversePairs),
@@ -140,8 +140,7 @@ task_page(Task, Options0) :-
 				div([class(row)], \task_stats(Task)),
 				h3([class('sub-header')],
 				   ['Task objects']),
-				\show_objects(['http://purl.org/collections/nl/rma/collection/r-115055'
-					       |SortedObjects], Options),
+				\show_objects(SortedObjects, Options),
 				\pagination(Options)
 			      ])
 			])
