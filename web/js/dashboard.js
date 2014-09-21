@@ -1,13 +1,21 @@
-YUI().use('event', 'json', 'io', function(Y) {
+YUI().use('event', 'json', 'io', 'querystring', function(Y) {
     Y.on('domready', function() {
 	Y.all(   '.judgebutton.agree.unchecked').on('click', submitJudgement, null, 'agree', 'disagree', 'add');
 	Y.all('.judgebutton.disagree.unchecked').on('click', submitJudgement, null, 'disagree', 'agree', 'add');
+	Y.all('.pagination a').on('click', pagination);
     });
     MOTIVATION = {
 	tagging:    'http://www.w3.org/ns/oa#tagging',
 	commenting: 'http://www.w3.org/ns/oa#commenting',
 	moderating: 'http://www.w3.org/ns/oa#moderating',
     };
+    function pagination(ev) {
+	    var limit  = ev.currentTarget.getAttribute('limit');
+	    var offset = ev.currentTarget.getAttribute('offset');
+	    var task   = ev.currentTarget.getAttribute('task');
+	    var parameters = Y.QueryString.stringify({ task:task,limit:limit, offset:offset });
+	    location.assign(location.pathname + '?' + parameters);
+    }
     function submitJudgement(ev, type, toggleto, mode) {
 	var button = ev.currentTarget;
 	button.detach('click');
@@ -53,4 +61,3 @@ YUI().use('event', 'json', 'io', function(Y) {
 	})
     }
 });
-
