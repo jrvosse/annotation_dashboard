@@ -13,12 +13,18 @@
 	    find_workers/1
 	  ]).
 
+:- use_module(library(apply)).
+:- use_module(library(lists)).
+:- use_module(library(option)).
+:- use_module(library(pairs)).
+
 :- use_module(library(semweb/rdf_db)).
 :- use_module(library(semweb/rdfs)).
 :- use_module(library(semweb/rdf_label)).
 :- use_module(library(count)).
 
 :- use_module(library(oa_annotation)).
+:- use_module(applications(annotation)).
 
 :- rdf_meta
 	task_property_blacklist(t).
@@ -34,11 +40,7 @@ blacklisted_annotation(A) :-
 	;
 	rdf_has(A, oa:annotedBy, 'http://localhost:3020/user/admin')
 	;
-	has_no_image(A)
-	;
 	rdf_has(A, dcterms:title, literal(test)).
-
-has_no_image(_A) :- fail.
 
 is_tag(A) :-
 	rdf_has(A, oa:motivatedBy, oa:tagging).
@@ -148,9 +150,16 @@ count_annotations(Target, Count-Target) :-
 representative(Candidates, Representative) :-
 	maplist(count_annotations, Candidates, Counts),
 	sort(Counts, Sorted),
-	reverse(Sorted, [_Count-Representative|_]),!.
-
+	pairs_values(Sorted, Values),
+	reverse(Values, Ordered),
+	find_first_with_image(Ordered, Representative).
 representative(_, no_representative_found).
+
+find_first_with_image([H|_], H) :-
+	\+ no_object_image(H), !.
+find_first_with_image([_|T], First) :-
+	find_first_with_image(T, First).
+
 
 property_key_label(500, targets_untouched, 'works without tags').
 property_key_label(200, targets_total,     'works targeted').
