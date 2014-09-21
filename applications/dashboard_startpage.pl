@@ -62,9 +62,9 @@ cliopatria:menu_item(100=annotation/http_dashboard_home, 'dashboard').
 http_dashboard_home(_Request) :-
 	(setting(annotation:dashboard_admin_only, true)
 	-> authorized(admin(dashboard)); true),
-	dashboard_page([]).
+	dashboard_home_page([]).
 
-dashboard_page(_Options) :-
+dashboard_home_page(_Options) :-
 	find_tasks(Tasks),
 	find_workers(Users),
 	find_annotations_without_task(TaskLess),
