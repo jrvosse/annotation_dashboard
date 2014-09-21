@@ -10,7 +10,6 @@
 :- use_module(library(oa_annotation)).
 :- use_module(applications(annotation)).
 :- use_module(components(dashboard/show_annotations)).
-:- use_module(components(dashboard/show_option_list)).
 :- use_module(library(dashboard_util)).
 
 show_objects(Targets,Options) -->
