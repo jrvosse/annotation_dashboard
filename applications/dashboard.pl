@@ -93,17 +93,18 @@ http_dashboard_user(Request) :-
 
 task_page(Task, Options0) :-
 	option(limit(Limit), Options0, 5),
-	option(offet(Offset), Options0, 0),
+	option(offset(Offset), Options0, 0),
 	rdf_display_label(Task, Label),
 	rdf_has(Task, ann_ui:taskUI, UI),
 	get_metafields(UI, [], MetadataFields),
-	get_anfields(UI, [], [], AnnotationFields),
-
+	% get_anfields(UI, [], [], AnnotationFields),
+	AnnotationFields = [ 'http://eculture.cs.vu.nl/sealinc/ns/demo/ui/CommonBirdNameAnnotation'],
 	find_annotations_by_task(Task, Annotations),
 	partition(is_tag, Annotations, Tags, Judgements),
 	maplist(rdf_get_annotation_target, Tags, RawTargets),
 	sort(RawTargets, AllTargets), % de-dup
-	list_offset(['http://purl.org/collections/nl/rma/collection/r-115055'|AllTargets], Offset, OffTargets),
+	% list_offset(['http://purl.org/collections/nl/rma/collection/r-108494'|AllTargets], Offset, OffTargets),
+	list_offset(AllTargets, Offset, OffTargets),
 	list_limit(OffTargets, Limit, Objects, _Rest),
 	length(AllTargets, Total),
 	maplist(count_annotations, Objects, CountPairs),
@@ -140,7 +141,7 @@ task_page(Task, Options0) :-
 				div([class(row)], \task_stats(Task)),
 				h3([class('sub-header')],
 				   ['Task objects']),
-				\show_objects(SortedObjects, Options),
+				\show_objects(Objects, Options),
 				\pagination(Options)
 			      ])
 			])
@@ -270,16 +271,33 @@ top_navbar -->
 
 
 
-show_objects([],_) --> !.
-show_objects([H|T],Options) -->
-	show_object(H,Options),
-	show_objects(T,Options).
+
+show_objects(Targets,Options) -->
+	{ true,
+	  option(task(Task), Options),
+	  rdf_has(Task, ann_ui:taskUI, UI),
+	  get_metafields(UI, [], MetadataFields),
+	  get_anfields(UI, [], [], AnnotationFields),
+	  NewOptions = [
+	      ui(UI),
+	      metadata_fields(MetadataFields),
+	      annotation_fields(AnnotationFields) |
+	      Options
+	  ]
+	},
+	html(
+	    [div([class(row)],
+		 [div([class('col-xs-6')],
+		      [\annotation_page_body([targets(Targets)|NewOptions])
+		      ])
+		 ])
+	    ]).
 
 
 match_target(T,A) :-
 	rdf_get_annotation_target(A,T).
 
-show_object(O, Options) -->
+show_object_old(O, Options) -->
 	{ option(annotations(A), Options, []),
 	  include(match_target(O), A, Annotations),
 	  (   ( option(metadata_fields(_), Options),
