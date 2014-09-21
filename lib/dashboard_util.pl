@@ -3,6 +3,7 @@
 	    guess_task/2,
 	    count_annotations/2,
 	    blacklisted_annotation/1,
+	    target_has_image/1,
 	    find_annotations_by_user/2,
 	    find_annotations_by_task/2,
 	    find_annotations_without_task/1,
@@ -156,10 +157,12 @@ representative(Candidates, Representative) :-
 representative(_, no_representative_found).
 
 find_first_with_image([H|_], H) :-
-	\+ no_object_image(H), !.
+	target_has_image(H),!.
 find_first_with_image([_|T], First) :-
 	find_first_with_image(T, First).
 
+target_has_image(T) :-
+	\+ no_object_image(T), !.
 
 property_key_label(500, targets_untouched, 'works without tags').
 property_key_label(200, targets_total,     'works targeted').
