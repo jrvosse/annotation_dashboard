@@ -70,11 +70,9 @@ judge_button(Type, Annotation, Field, Judgements) -->
 			   annotation(Annotation),
 			   type(radio),
 			   title(Type), 'data-toggle'(tooltip)
-			  ],
-			  [
-			      \button_glyph(Type)
-			  ])
-		  ])
+			  ],[]),
+		    \button_glyph(Type)
+		    ])
 	]).
 
 current_judgment(Type, A, Jlist, J, checked) :-
