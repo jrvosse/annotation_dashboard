@@ -5,9 +5,8 @@
 :- use_module(library(sort)).
 :- use_module(library(http/html_write)).
 :- use_module(library(http/http_dispatch)).
-
-:- use_module(library(semweb/rdf_db)).
 :- use_module(library(semweb/rdf_label)).
+
 :- use_module(library(dashboard_util)).
 :- use_module(applications(annotation)).
 :- use_module(show_option_list).
@@ -26,19 +25,19 @@ show_task(Task) -->
 	  http_link_to_id(http_dashboard_task, [task(Task)], TaskLink),
 	  find_task_properties(Task, Props0, Representative,[]),
 	  predsort(task_compare, Props0, Props),
-	  object_image(Representative, Image),
-	  http_link_to_id(http_medium_fit, [uri(Image)], ImageHref)
-
+	  (   no_object_image(Representative)
+	  ->  Img = span('no example image for this task available')
+	  ;   object_image(Representative, Image),
+	      http_link_to_id(http_medium_fit, [uri(Image)], ImageHref),
+	      Img = img([src(ImageHref), alt('Example image for this task'),
+				 class('img-responsive')],[])
+	  )
 	},
 	html([div(class(row),
 		  [ h3([class('sub-header')],
 		       [a([href(TaskLink)],Title)]),
-		    div(class('col-sm-5'),
-			[
-			    img([src(ImageHref), alt('Example image for this task'),
-				 class('img-responsive')],[])
-			]),
-		    div(class('col-sm-7'),
+		    div([class('col-sm-5')],[ Img ]),
+		    div([class('col-sm-7')],
 			[
 			  div([class('table-responsive')],
 			      [table([class('table table-striped')],
