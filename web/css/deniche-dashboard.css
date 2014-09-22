@@ -10,6 +10,12 @@
 .mediasection .description {
 	font-size: 0.6em;
 }
+div.layout.row {
+	padding-bottom: 1%;
+	margin-bottom: 2%;
+	border-bottom: 1pt solid #AAA;
+}
 .mediasection .link {
+	padding-top: 1%;
 	font-size: 0.5em;
 }
