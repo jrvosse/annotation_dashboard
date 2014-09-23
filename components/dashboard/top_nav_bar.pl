@@ -2,11 +2,17 @@
 	  [ top_navbar//0
 	  ]).
 
+:- use_module(library(settings)).
 :- use_module(library(http/http_dispatch)).
 :- use_module(library(http/html_write)).
 
+:- use_module(applications(dashboard_startpage)).
+:- setting(annotation:dashboard_home, uri, http_dashboard_home, '"home" link used in the top navigation bar').
+
 top_navbar -->
-	{ http_link_to_id(http_annotation, [], AnnotateLink)
+	{ http_link_to_id(http_annotation, [], AnnotateLink),
+	  setting(annotation:dashboard_home, HomePredicate),
+	  http_link_to_id(HomePredicate, [], HomeLink)
 	},
 	html(
 	    div([class('navbar navbar-inverse navbar-fixed-top'),
@@ -21,7 +27,7 @@ top_navbar -->
 				     span([class('icon-bar')],[])
 				   ]),
 			   a([class('navbar-brand'),
-			      href('http://sealincmedia.wordpress.com/tag/accurator/')
+			      href(HomeLink)
 			     ], ['Accurator for ',
 				 span([class(role)],['Curator'])])
 			  ]),
