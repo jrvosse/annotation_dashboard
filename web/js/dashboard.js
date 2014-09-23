@@ -2,6 +2,7 @@ YUI().use('event', 'json', 'io', 'querystring', function(Y) {
     Y.on('domready', function() {
 	Y.all(   '.judgebutton.agree.unchecked').on('click', submitJudgement, null, 'agree', 'disagree', 'add');
 	Y.all('.judgebutton.disagree.unchecked').on('click', submitJudgement, null, 'disagree', 'agree', 'add');
+	Y.all('.dashboard.delete').each(function(node) { node.on('click', deleteAnnotation, null, node); });
 	Y.all('.pagination a').on('click', pagination);
     });
     MOTIVATION = {
@@ -15,6 +16,15 @@ YUI().use('event', 'json', 'io', 'querystring', function(Y) {
 	    var task   = ev.currentTarget.getAttribute('task');
 	    var parameters = Y.QueryString.stringify({ task:task,limit:limit, offset:offset });
 	    location.assign(location.pathname + '?' + parameters);
+    }
+    function deleteAnnotation(ev,button) {
+	var annotation = button.getAttribute('annotation');
+	Y.io('../../api/annotation/remove', {
+		method: 'DELETE',
+		data:{ annotation:annotation, comment:"Removed from dashboard application" },
+		on: { success: function() { button.get('parentNode').get('parentNode').get('parentNode').remove(true); }
+		    }
+		});
     }
     function submitJudgement(ev, type, toggleto, mode) {
 	var button = ev.currentTarget;

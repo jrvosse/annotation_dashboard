@@ -45,7 +45,8 @@ show_annotation_summery(A, Options) -->
 	    td([class(judgebuttoncell)],
 	       div([class('btn-group'), 'data-toggle'(buttons)],
 		   [ \judge_button(agree, A, Field, Js),
-		     \judge_button(disagree, A, Field, Js)
+		     \judge_button(disagree, A, Field, Js),
+		     \delete_button(A, Field)
 		   ])
 	      ),
 	    td(\rdf_link(Field, [resource_format(label)])),
@@ -56,6 +57,16 @@ show_annotation_summery(A, Options) -->
 is_judgement_of(A, J) :-
 	rdf_has(J, oa:hasTarget, A).
 
+
+delete_button(Annotation, Field) -->
+	html([
+	    button([class([btn,'btn-primary', dashboard, delete]),
+		    field(Field),
+		    annotation(Annotation)
+		   ],
+		   \button_glyph(remove)
+		  )
+	]).
 
 judge_button(Type, Annotation, Field, Judgements) -->
 	{  current_judgment(Type, Annotation, Judgements, J, Checked),
@@ -91,6 +102,7 @@ button_glyph(agree) -->
 	html(span([class([glyphicon,'glyphicon-thumbs-up'])],[' agree'])).
 button_glyph(disagree) -->
 	html(span([class([glyphicon,'glyphicon-thumbs-down'])],[' disagree'])).
-
+button_glyph(remove) -->
+	html(span([class([glyphicon,'glyphicon-remove'])],[' remove'])).
 checked_active(checked, active).
 checked_active(_, '').
