@@ -10,6 +10,7 @@
 
 	    find_tasks/1,
 	    find_task_properties/4,
+	    find_user_stats/3,
 
 	    find_workers/1
 	  ]).
@@ -105,6 +106,25 @@ is_specific_target_annotation(A, T) :-
 	rdf_has(A, oa:hasTarget, T),
 	rdfs_individual_of(T, oa:'SpecificResource').
 
+find_user_stats(_User, Props, Options) :-
+	option(annotations(Annotations), Options),
+	option(judgements(Judgements), Options),
+	option(targets(Targets), Options),
+	include(is_specific_target_annotation, Annotations, SpecAnns),
+	length(Annotations, NrAnnotations),
+	length(Judgements, NrJudgements),
+	length(SpecAnns, NrSpecAnns),
+	length(Targets, NrWorkedOn),
+	NrObjAnnotations is NrAnnotations - NrSpecAnns,
+	CountProps = [ annotations(NrAnnotations),
+		       judgements(NrJudgements),
+		       spec_annotations(NrSpecAnns),
+		       obj_annotations(NrObjAnnotations),
+		       targets_worked_on(NrWorkedOn)
+		     ],
+	maplist(pmap, CountProps, Props).
+
+
 find_task_properties(Task, Props, Representative, Options) :-
 	option(filter(Filter), Options, ground),
 	find_annotations_by_task(Task, Annotations),
@@ -166,6 +186,7 @@ target_has_image(T) :-
 
 property_key_label(500, targets_untouched, 'works without tags').
 property_key_label(200, targets_total,     'works targeted').
+property_key_label(205, judgements,        'annotations this user judged').
 property_key_label(250, targets_complete,  'works completed').
 property_key_label(300, targets_worked_on, 'works with some tags').
 property_key_label(100, annotations,       'total annotations').

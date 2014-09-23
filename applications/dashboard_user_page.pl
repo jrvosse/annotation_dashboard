@@ -2,6 +2,8 @@
 
 % from SWI-Prolog libraries:
 :- use_module(library(apply)).
+:- use_module(library(option)).
+:- use_module(library(settings)).
 :- use_module(library(http/http_dispatch)).
 :- use_module(library(http/http_parameters)).
 :- use_module(library(http/html_write)).
@@ -32,19 +34,22 @@ http_dashboard_user(Request) :-
 	user_page(User, []).
 
 user_page(User, Options0) :-
-	findall(Prop, user_property(User, Prop), Props),
+	findall(Prop, user_property(User, Prop), UserProps),
 	find_annotations_by_user(User, Annotations),
 	partition(is_tag, Annotations, Tags, Judgements),
 	maplist(rdf_get_annotation_target, Tags, Targets),
 	sort(Targets, Objects),
-	Options = [annotations(Annotations),
-		   judgements(Judgements),
-		   lazy(true),
-		   user(User),
-		   showTag(mine),
-		   image_link_predicate(http_mediumscale) |
-		   Options0
-		  ],
+	Extra = [annotations(Annotations),
+		 judgements(Judgements),
+		 lazy(true),
+		 user(User),
+		 targets(Objects),
+		 showTag(mine),
+		 image_link_predicate(http_mediumscale)
+		],
+	merge_options(Extra, Options0, Options),
+	find_user_stats(User, UserStats, Options),
+	merge_options(UserStats, UserProps, Props),
 	reply_html_page(
 	    [title(User),
 	     meta([name(viewport),
