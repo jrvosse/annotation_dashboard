@@ -19,3 +19,7 @@ div.layout.row {
 	padding-top: 1%;
 	font-size: 0.5em;
 }
+
+.layout .fields {
+	display: none;
+}
